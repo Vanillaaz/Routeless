@@ -228,3 +228,4 @@ export const SettingsView: React.FC<SettingsProps> = ({
     </div>
   );
 };
+

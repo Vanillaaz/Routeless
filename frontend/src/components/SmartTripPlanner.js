@@ -1,0 +1,43 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { useState, useEffect } from 'react';
+import { Navigation, MapPin, Clock, ArrowRight, Sparkles, CheckCircle2, Bus, RotateCw, Award } from 'lucide-react';
+import { planTripOptions } from '../api';
+export const SmartTripPlanner = ({ locations, onTrackBus }) => {
+    const villages = locations.filter(l => l.type === 'village');
+    const colleges = locations.filter(l => l.type === 'college');
+    const [originId, setOriginId] = useState(villages[0]?.id || 'V1');
+    const [destinationId, setDestinationId] = useState(colleges[0]?.id || 'C1');
+    const [tripData, setTripData] = useState(null);
+    const [isLoading, setIsLoading] = useState(false);
+    const loadPlan = async (orig, dest) => {
+        setIsLoading(true);
+        try {
+            const data = await planTripOptions(orig, dest);
+            setTripData(data);
+        }
+        catch (err) {
+            console.error('Trip plan error:', err);
+        }
+        finally {
+            setIsLoading(false);
+        }
+    };
+    useEffect(() => {
+        loadPlan(originId, destinationId);
+    }, []);
+    const handleSwap = () => {
+        // If student wants to reverse
+        const currentOrigin = originId;
+        const currentDest = destinationId;
+        // Keep valid village/college
+        loadPlan(currentOrigin, currentDest);
+    };
+    return (_jsxs("div", { className: "space-y-6 max-w-5xl mx-auto pb-12 animate-in fade-in duration-200", children: [_jsxs("div", { className: "bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4", children: [_jsx("div", { children: _jsxs("div", { className: "flex items-center gap-2", children: [_jsx("div", { className: "w-9 h-9 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-md", children: _jsx(Navigation, { className: "w-5 h-5 text-slate-950" }) }), _jsxs("div", { children: [_jsx("h1", { className: "text-2xl font-black text-slate-900 tracking-tight", children: "Smart Bus Allocation & Route Finder" }), _jsx("p", { className: "text-xs text-slate-500 mt-0.5", children: "Compare all available travel options from your village to college and choose the best route." })] })] }) }), _jsxs("div", { className: "grid grid-cols-1 md:grid-cols-12 gap-3 items-center pt-2", children: [_jsxs("div", { className: "md:col-span-5 space-y-1", children: [_jsxs("label", { className: "text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5", children: [_jsx(MapPin, { className: "w-3.5 h-3.5 text-amber-500" }), _jsx("span", { children: "Starting From (Your Village)" })] }), _jsx("select", { value: originId, onChange: (e) => setOriginId(e.target.value), className: "w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white", children: villages.map((v) => (_jsxs("option", { value: v.id, children: ["\uD83C\uDFE1 ", v.name, " (", v.taluk, " Taluk)"] }, v.id))) })] }), _jsx("div", { className: "md:col-span-2 flex justify-center pt-4 md:pt-0", children: _jsx("div", { className: "w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400", children: _jsx(ArrowRight, { className: "w-5 h-5 text-emerald-600" }) }) }), _jsxs("div", { className: "md:col-span-5 space-y-1", children: [_jsxs("label", { className: "text-xs font-bold text-slate-600 uppercase tracking-wider flex items-center gap-1.5", children: [_jsx(MapPin, { className: "w-3.5 h-3.5 text-indigo-500" }), _jsx("span", { children: "Traveling To (Your College)" })] }), _jsx("select", { value: destinationId, onChange: (e) => setDestinationId(e.target.value), className: "w-full p-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white", children: colleges.map((c) => (_jsxs("option", { value: c.id, children: ["\uD83C\uDF93 ", c.name] }, c.id))) })] })] }), _jsx("div", { className: "pt-2 flex justify-end", children: _jsxs("button", { onClick: () => loadPlan(originId, destinationId), disabled: isLoading, className: "w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition disabled:opacity-50", children: [isLoading ? _jsx(RotateCw, { className: "w-4 h-4 animate-spin" }) : _jsx(Sparkles, { className: "w-4 h-4" }), _jsx("span", { children: "Find & Compare Travel Options" })] }) })] }), tripData && (_jsxs("div", { className: "space-y-4", children: [_jsxs("div", { className: "flex items-center justify-between px-1", children: [_jsxs("div", { children: [_jsx("span", { className: "text-xs font-bold text-slate-400 uppercase tracking-wider", children: "Available Travel Options:" }), _jsxs("div", { className: "text-base font-bold text-slate-900 mt-0.5", children: [tripData.origin.name, " \u2794 ", tripData.destination.name] })] }), _jsxs("div", { className: "text-xs text-slate-500 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 font-semibold text-emerald-800", children: ["Target College Arrival Deadline: ", _jsx("b", { children: tripData.deadline })] })] }), _jsx("div", { className: "space-y-4", children: tripData.options.map((opt) => {
+                            const isBest = opt.is_best;
+                            return (_jsxs("div", { className: `p-6 rounded-2xl border transition-all ${isBest
+                                    ? 'bg-gradient-to-r from-emerald-50/70 via-white to-white border-2 border-emerald-500 shadow-lg shadow-emerald-500/10'
+                                    : 'bg-white border-slate-200 shadow-sm hover:border-slate-300'}`, children: [isBest && (_jsxs("div", { className: "inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-600 text-white text-xs font-black shadow-sm mb-3", children: [_jsx(Award, { className: "w-3.5 h-3.5" }), _jsx("span", { children: "RECOMMENDED BEST TRAVEL OPTION" })] })), _jsxs("div", { className: "flex flex-col md:flex-row md:items-center justify-between gap-4", children: [_jsxs("div", { className: "space-y-2", children: [_jsxs("div", { className: "flex items-center gap-3", children: [_jsx("span", { className: "text-xs font-bold uppercase tracking-wider text-slate-500", children: opt.category }), _jsx("span", { className: "text-xs px-2 py-0.5 rounded font-bold bg-slate-100 text-slate-700", children: opt.fare }), _jsxs("span", { className: `text-xs px-2 py-0.5 rounded font-bold ${opt.available_seats > 5 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`, children: [opt.available_seats, " Seats Left"] })] }), _jsx("h3", { className: "text-lg font-black text-slate-900 tracking-tight", children: opt.title }), _jsxs("div", { className: "flex items-center gap-4 text-xs font-semibold text-slate-700", children: [_jsxs("div", { className: "flex items-center gap-1", children: [_jsx(Clock, { className: "w-4 h-4 text-emerald-600" }), _jsxs("span", { children: ["Departs: ", _jsx("b", { children: opt.departure_time })] })] }), _jsx("div", { className: "text-slate-300", children: "\u2192" }), _jsxs("div", { className: "flex items-center gap-1", children: [_jsx(CheckCircle2, { className: "w-4 h-4 text-indigo-600" }), _jsxs("span", { children: ["Arrives: ", _jsx("b", { children: opt.arrival_time })] })] }), _jsxs("span", { className: "text-slate-400", children: ["(", opt.duration_mins, " mins total)"] })] }), _jsxs("div", { className: "text-xs text-slate-600 pt-1 space-y-0.5", children: [_jsxs("div", { children: ["Board at: ", _jsx("b", { children: opt.pickup_point })] }), _jsxs("div", { children: ["Alight at: ", _jsx("b", { children: opt.dropoff_point })] })] }), _jsx("p", { className: `text-xs mt-2 font-medium ${isBest ? 'text-emerald-800' : 'text-slate-500'}`, children: opt.recommendation_reason })] }), _jsx("div", { className: "shrink-0 flex items-center md:flex-col justify-end gap-2", children: _jsxs("button", { onClick: () => onTrackBus(opt.vehicle_id), className: `px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-sm ${isBest
+                                                        ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-600/20'
+                                                        : 'bg-slate-900 hover:bg-slate-800 text-white'}`, children: [_jsx(Bus, { className: "w-4 h-4" }), _jsx("span", { children: "Track This Bus Live" })] }) })] })] }, opt.id));
+                        }) })] }))] }));
+};

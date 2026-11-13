@@ -1,0 +1,23 @@
+import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
+import { Bus, Navigation, MapPin, Sparkles, Clock } from 'lucide-react';
+export const StudentHeader = ({ activeTab, setActiveTab, activeBusesCount }) => {
+    const tabs = [
+        { id: 'tracker', label: 'Live Bus Tracker', icon: Bus },
+        { id: 'planner', label: 'Find Best Route', icon: Navigation, badge: 'Smart AI' },
+        { id: 'stops', label: 'Bus Stops & Timetable', icon: MapPin },
+        { id: 'assistant', label: 'AI Student Assistant', icon: Sparkles },
+    ];
+    return (_jsx("header", { className: "bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-sm", children: _jsxs("div", { className: "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8", children: [_jsxs("div", { className: "flex items-center justify-between h-16", children: [_jsxs("div", { className: "flex items-center gap-3 cursor-pointer", onClick: () => setActiveTab('tracker'), children: [_jsx("div", { className: "w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/20", children: _jsx(Bus, { className: "w-6 h-6 text-slate-950" }) }), _jsxs("div", { children: [_jsxs("div", { className: "flex items-center gap-1.5", children: [_jsx("span", { className: "font-black text-lg tracking-tight text-slate-900", children: "GRAMMOVE" }), _jsx("span", { className: "text-[10px] px-1.5 py-0.5 rounded font-black bg-emerald-100 text-emerald-800 border border-emerald-300", children: "AI" })] }), _jsx("p", { className: "text-[11px] font-medium text-slate-500 -mt-0.5", children: "Rural Student Bus Allocation & Live Tracking" })] })] }), _jsx("nav", { className: "hidden md:flex items-center gap-1.5 bg-slate-100/80 p-1.5 rounded-xl border border-slate-200", children: tabs.map((tab) => {
+                                const Icon = tab.icon;
+                                const isActive = activeTab === tab.id;
+                                return (_jsxs("button", { onClick: () => setActiveTab(tab.id), className: `flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition ${isActive
+                                        ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/80'
+                                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'}`, children: [_jsx(Icon, { className: `w-4 h-4 ${isActive ? 'text-emerald-600' : 'text-slate-500'}` }), _jsx("span", { children: tab.label }), tab.badge && (_jsx("span", { className: "text-[9px] px-1.5 py-0.2 rounded font-extrabold bg-emerald-100 text-emerald-800", children: tab.badge }))] }, tab.id));
+                            }) }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("div", { className: "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold", children: [_jsx("span", { className: "w-2 h-2 rounded-full bg-emerald-500 animate-ping" }), _jsxs("span", { children: [activeBusesCount, " Buses Running Live"] })] }), _jsxs("div", { className: "hidden lg:flex items-center gap-1.5 text-xs text-slate-500 font-medium", children: [_jsx(Clock, { className: "w-3.5 h-3.5 text-slate-400" }), _jsx("span", { children: "Morning Window: 07:15 - 09:00 AM" })] })] })] }), _jsx("div", { className: "flex md:hidden border-t border-slate-100 py-2 overflow-x-auto gap-2", children: tabs.map((tab) => {
+                        const Icon = tab.icon;
+                        const isActive = activeTab === tab.id;
+                        return (_jsxs("button", { onClick: () => setActiveTab(tab.id), className: `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${isActive
+                                ? 'bg-emerald-600 text-white shadow-sm'
+                                : 'bg-slate-100 text-slate-600'}`, children: [_jsx(Icon, { className: "w-3.5 h-3.5" }), _jsx("span", { children: tab.label })] }, tab.id));
+                    }) })] }) }));
+};

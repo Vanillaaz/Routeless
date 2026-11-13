@@ -1,4 +1,4 @@
-import { NetworkStateResponse, OptimizationResult, ChatMessage } from './types';
+import type { NetworkStateResponse, OptimizationResult, ChatMessage } from './types';
 
 const API_BASE = '/api';
 
@@ -10,34 +10,18 @@ export async function fetchNetworkState(): Promise<NetworkStateResponse> {
   return res.json();
 }
 
-export async function triggerOptimization(forceReroute: boolean = false): Promise<OptimizationResult> {
-  const res = await fetch(`${API_BASE}/optimize`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ force_reroute: forceReroute })
-  });
+export async function trackBusByNumber(busQuery: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/track/${encodeURIComponent(busQuery)}`);
   if (!res.ok) {
-    throw new Error(`Optimization failed: ${res.statusText}`);
+    throw new Error(`Bus not found: ${res.statusText}`);
   }
   return res.json();
 }
 
-export async function triggerSimulationScenario(
-  scenarioType: string,
-  params?: { vehicleId?: string; roadId?: string; surgePct?: number }
-): Promise<{ message: string; scenario_name: string; disruptions: any[]; optimization: OptimizationResult }> {
-  const res = await fetch(`${API_BASE}/simulate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      scenario_type: scenarioType,
-      vehicle_id: params?.vehicleId,
-      road_id: params?.roadId,
-      surge_percentage: params?.surgePct
-    })
-  });
+export async function planTripOptions(originId: string, destinationId: string): Promise<any> {
+  const res = await fetch(`${API_BASE}/plan-trip?origin=${encodeURIComponent(originId)}&destination=${encodeURIComponent(destinationId)}`);
   if (!res.ok) {
-    throw new Error(`Simulation failed: ${res.statusText}`);
+    throw new Error(`Failed to plan trip: ${res.statusText}`);
   }
   return res.json();
 }
@@ -57,14 +41,3 @@ export async function sendChatMessage(message: string, studentId?: string): Prom
   }
   return res.json();
 }
-
-export async function toggleVehicle(vehicleId: string) {
-  const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/toggle-status`, { method: 'POST' });
-  return res.json();
-}
-
-export async function toggleRoad(roadId: string) {
-  const res = await fetch(`${API_BASE}/roads/${roadId}/toggle-status`, { method: 'POST' });
-  return res.json();
-}
-

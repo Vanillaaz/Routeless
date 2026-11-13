@@ -6,30 +6,17 @@ export async function fetchNetworkState() {
     }
     return res.json();
 }
-export async function triggerOptimization(forceReroute = false) {
-    const res = await fetch(`${API_BASE}/optimize`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force_reroute: forceReroute })
-    });
+export async function trackBusByNumber(busQuery) {
+    const res = await fetch(`${API_BASE}/track/${encodeURIComponent(busQuery)}`);
     if (!res.ok) {
-        throw new Error(`Optimization failed: ${res.statusText}`);
+        throw new Error(`Bus not found: ${res.statusText}`);
     }
     return res.json();
 }
-export async function triggerSimulationScenario(scenarioType, params) {
-    const res = await fetch(`${API_BASE}/simulate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            scenario_type: scenarioType,
-            vehicle_id: params?.vehicleId,
-            road_id: params?.roadId,
-            surge_percentage: params?.surgePct
-        })
-    });
+export async function planTripOptions(originId, destinationId) {
+    const res = await fetch(`${API_BASE}/plan-trip?origin=${encodeURIComponent(originId)}&destination=${encodeURIComponent(destinationId)}`);
     if (!res.ok) {
-        throw new Error(`Simulation failed: ${res.statusText}`);
+        throw new Error(`Failed to plan trip: ${res.statusText}`);
     }
     return res.json();
 }
@@ -42,13 +29,5 @@ export async function sendChatMessage(message, studentId) {
     if (!res.ok) {
         throw new Error(`Chat error: ${res.statusText}`);
     }
-    return res.json();
-}
-export async function toggleVehicle(vehicleId) {
-    const res = await fetch(`${API_BASE}/vehicles/${vehicleId}/toggle-status`, { method: 'POST' });
-    return res.json();
-}
-export async function toggleRoad(roadId) {
-    const res = await fetch(`${API_BASE}/roads/${roadId}/toggle-status`, { method: 'POST' });
     return res.json();
 }
