@@ -1,37 +1,49 @@
 import React, { useState, useEffect, useRef } from 'react';
 import L from 'leaflet';
-import { 
-  Bus, 
-  Search, 
-  MapPin, 
-  Clock, 
-  Users, 
-  Phone, 
-  Navigation, 
-  CheckCircle2, 
+import {
+  Bus,
+  Search,
+  Star,
+  Clock,
+  MapPin,
+  Navigation,
+  CheckCircle2,
+  Bell,
+  Share2,
+  ChevronRight,
+  ArrowLeft,
   ArrowRight,
+  MoreVertical,
+  HelpCircle,
   ShieldCheck,
-  RotateCw
+  Check
 } from 'lucide-react';
 import { trackBusByNumber } from '../api';
 import type { Vehicle, Location } from '../types';
 
-interface BusTrackerProps {
+interface LiveBusTrackerProps {
   initialBusId?: string;
   allVehicles: Vehicle[];
   allLocations: Location[];
-  onSelectRoute?: (origin: string, dest: string) => void;
+  onBackToResults?: () => void;
 }
 
-export const LiveBusTracker: React.FC<BusTrackerProps> = ({
+export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
   initialBusId = 'BUS-101',
   allVehicles,
-  allLocations
+  allLocations,
+  onBackToResults
 }) => {
   const [searchQuery, setSearchQuery] = useState(initialBusId);
   const [busData, setBusData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // View mode: 'timeline' (Image 2 Top) or 'live_map' (Image 2 Bottom)
+  const [viewMode, setViewMode] = useState<'timeline' | 'live_map'>('timeline');
+  const [isSaved, setIsSaved] = useState(false);
+  const [isReminderSet, setIsReminderSet] = useState(false);
+  const [sharedToast, setSharedToast] = useState(false);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -54,11 +66,18 @@ export const LiveBusTracker: React.FC<BusTrackerProps> = ({
 
   useEffect(() => {
     loadBusData(searchQuery);
-  }, []);
+  }, [initialBusId]);
 
-  // Initialize Map
+  // Leaflet Map initialization (for live_map mode)
   useEffect(() => {
-    if (!mapContainerRef.current || mapInstanceRef.current) return;
+    if (viewMode !== 'live_map') return;
+    if (!mapContainerRef.current) return;
+
+    // Destroy existing instance if container changed
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
 
     const map = L.map(mapContainerRef.current, {
       center: [12.72, 77.28],
@@ -66,11 +85,11 @@ export const LiveBusTracker: React.FC<BusTrackerProps> = ({
       zoomControl: false
     });
 
-    L.control.zoom({ position: 'bottomright' }).addTo(map);
+    L.control.zoom({ position: 'topleft' }).addTo(map);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '© OpenStreetMap contributors | GRAMMOVE AI'
+      attribution: '© OpenStreetMap contributors | RouteFlow'
     }).addTo(map);
 
     const markerGroup = L.layerGroup().addTo(map);
@@ -81,10 +100,11 @@ export const LiveBusTracker: React.FC<BusTrackerProps> = ({
       map.remove();
       mapInstanceRef.current = null;
     };
-  }, []);
+  }, [viewMode]);
 
-  // Update map when busData changes
+  // Draw route and markers when busData updates in live_map mode
   useEffect(() => {
+    if (viewMode !== 'live_map') return;
     const map = mapInstanceRef.current;
     const markerGroup = markerGroupRef.current;
     if (!map || !markerGroup || !busData) return;
@@ -94,300 +114,503 @@ export const LiveBusTracker: React.FC<BusTrackerProps> = ({
     // 1. Draw route line through all stops
     if (busData.stops && busData.stops.length > 1) {
       const stopCoords: [number, number][] = busData.stops.map((s: any) => [s.lat, s.lng]);
-      
-      const routeLine = L.polyline(stopCoords, {
-        color: '#10b981',
-        weight: 5,
-        opacity: 0.85
-      });
-      markerGroup.addLayer(routeLine);
 
-      // 2. Draw Stop markers
-      busData.stops.forEach((s: any, idx: number) => {
-        const isDest = idx === busData.stops.length - 1;
-        const iconHtml = `
-          <div class="flex items-center justify-center w-7 h-7 rounded-full ${isDest ? 'bg-indigo-600' : 'bg-slate-700'} text-white font-bold text-xs shadow-md border-2 border-white">
-            ${isDest ? '🎓' : idx + 1}
-          </div>
-        `;
+      const routeLine = L.polyline(stopCoords, {
+        color: '#2563eb', // RouteFlow blue
+        weight: 5,
+        opacity: 0.9,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(markerGroup);
+
+      // Stop pins
+      busData.stops.forEach((stop: any, idx: number) => {
+        const isCurrent = idx === 0;
+        const isEnd = idx === busData.stops.length - 1;
+
         const stopIcon = L.divIcon({
-          html: iconHtml,
           className: 'custom-map-icon',
-          iconSize: [28, 28],
-          iconAnchor: [14, 14]
+          html: `
+            <div style="
+              width: 14px; 
+              height: 14px; 
+              background: #ffffff; 
+              border: 3px solid ${isCurrent ? '#2563eb' : isEnd ? '#059669' : '#64748b'}; 
+              border-radius: 50%; 
+              box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            "></div>
+          `,
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
         });
 
-        const stopMarker = L.marker([s.lat, s.lng], { icon: stopIcon });
-        stopMarker.bindPopup(`
-          <div class="p-2 text-slate-900 font-sans">
-            <div class="font-bold text-xs text-slate-800">Stop ${idx + 1}: ${s.name}</div>
-            <div class="text-xs text-slate-600 mt-1">Arrival Time: <b>${s.scheduled_time}</b></div>
-            <div class="text-[10px] text-slate-500 capitalize">Status: ${s.status}</div>
+        const m = L.marker([stop.lat, stop.lng], { icon: stopIcon }).addTo(markerGroup);
+        m.bindPopup(`
+          <div style="font-family: inherit; font-size: 11px;">
+            <strong style="color: #0f172a;">${stop.name}</strong><br/>
+            <span style="color: #64748b;">Scheduled: ${stop.scheduled_time}</span>
           </div>
         `);
-        markerGroup.addLayer(stopMarker);
       });
 
-      // Fit map to route
-      map.fitBounds(routeLine.getBounds(), { padding: [40, 40] });
+      // 2. Moving live bus icon marker
+      const busLat = busData.lat || stopCoords[0][0];
+      const busLng = busData.lng || stopCoords[0][1];
+
+      const busMarkerIcon = L.divIcon({
+        className: 'custom-map-icon',
+        html: `
+          <div style="
+            width: 38px; 
+            height: 38px; 
+            background: #2563eb; 
+            border: 3px solid #ffffff; 
+            border-radius: 50%; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            box-shadow: 0 4px 12px rgba(37,99,235,0.4);
+          ">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 6v6"/>
+              <path d="M15 6v6"/>
+              <path d="M2 12h19.6"/>
+              <path d="M18 18h3s.5-1.7.8-2.8c.1-.4.2-.8.2-1.2 0-.4-.1-.8-.2-1.2l-1.4-5c-.3-1-1.1-1.8-2.1-1.8H5.7c-1 0-1.8.8-2.1 1.8l-1.4 5c-.1.4-.2.8-.2 1.2 0 .4.1.8.2 1.2.3 1.1.8 2.8.8 2.8h3"/>
+              <circle cx="7" cy="18" r="2"/>
+              <circle cx="17" cy="18" r="2"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [38, 38],
+        iconAnchor: [19, 19]
+      });
+
+      L.marker([busLat, busLng], { icon: busMarkerIcon })
+        .addTo(markerGroup)
+        .bindPopup(`
+          <div style="font-family: inherit; font-size: 11px;">
+            <strong style="color: #2563eb;">${busData.name}</strong><br/>
+            Speed: ${busData.speed_kmh} km/h • ${busData.status}
+          </div>
+        `)
+        .openPopup();
+
+      map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
     }
+  }, [viewMode, busData]);
 
-    // 3. Draw Live Moving Bus Marker
-    const busHtml = `
-      <div class="flex items-center justify-center w-10 h-10 rounded-2xl bg-emerald-600 text-white font-black shadow-xl border-3 border-white bus-pulse text-base cursor-pointer">
-        🚌
-      </div>
-    `;
-    const busIcon = L.divIcon({
-      html: busHtml,
-      className: 'custom-map-icon',
-      iconSize: [40, 40],
-      iconAnchor: [20, 20]
-    });
+  const handleShare = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setSharedToast(true);
+    setTimeout(() => setSharedToast(false), 2500);
+  };
 
-    const busMarker = L.marker([busData.lat, busData.lng], { icon: busIcon });
-    busMarker.bindPopup(`
-      <div class="p-2 text-slate-900 font-sans">
-        <div class="font-bold text-sm text-emerald-800">${busData.name}</div>
-        <div class="text-xs text-slate-600 mt-1">Speed: <b>${busData.speed_kmh} km/h</b></div>
-        <div class="text-xs text-slate-600">Available Seats: <b>${busData.available_seats} left</b></div>
-        <div class="text-xs text-slate-600">Next: <b>${busData.next_stop}</b> (${busData.eta_next_stop})</div>
-      </div>
-    `);
-    markerGroup.addLayer(busMarker);
-
-  }, [busData]);
-
-  const quickPillBuses = [
-    { id: 'BUS-101', label: 'Bus KA-42-F-1024', route: 'Byramangala → Bidadi' },
-    { id: 'BUS-102', label: 'Bus KA-42-F-2180', route: 'Sugganahalli → Ramanagara' },
-    { id: 'BUS-103', label: 'Bus KA-42-F-3011', route: 'Doddamallur → Channapatna' },
-    { id: 'BUS-104', label: 'Bus KA-42-F-4105', route: 'Kailancha → Ramanagara' },
-    { id: 'MINI-201', label: 'Minibus KA-42-M-4412', route: 'Bidadi Feeder' },
-  ];
+  const stops = busData?.stops || [];
+  const currentStopName = stops[0]?.name || busData?.current_location_name || 'Ramanagara Bus Stand';
+  const nextStopName = busData?.next_stop || stops[1]?.name || 'Bidadi Engineering College';
+  const regNo = busData?.name?.split(' ').slice(-1)[0] || 'KA-42-F-1024';
+  const busType = busData?.type === 'govt_bus' ? 'Ordinary Express' : busData?.type === 'minibus' ? 'Rural MiniBus' : 'Shared Auto';
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-12 animate-in fade-in duration-200">
-      {/* Search Header Banner */}
-      <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div className="max-w-3xl">
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
-            Live Student Bus Tracker
-          </h1>
-          <p className="text-sm text-slate-600 mt-1">
-            Track your college bus live on the map, see upcoming bus stops with exact arrival timestamps, and check seat availability before heading out.
-          </p>
+    <div className="space-y-6">
+      {/* Search Header Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        {/* Back Link */}
+        <button
+          onClick={onBackToResults ? onBackToResults : () => setViewMode(viewMode === 'live_map' ? 'timeline' : 'timeline')}
+          className="flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-blue-600 transition"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          <span>{viewMode === 'live_map' ? 'Back to route details' : 'Back to results'}</span>
+        </button>
 
-          {/* Search Box */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              loadBusData(searchQuery);
-            }}
-            className="mt-4 flex flex-col sm:flex-row items-center gap-2"
-          >
-            <div className="relative flex-1 w-full">
-              <Search className="w-5 h-5 text-slate-400 absolute left-3.5 top-3" />
-              <input
-                type="text"
-                placeholder="Enter Bus Number (e.g. KA-42-F-1024 or BUS-101)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-11 pr-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:bg-white transition"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full sm:w-auto px-6 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition disabled:opacity-50"
-            >
-              {isLoading ? <RotateCw className="w-4 h-4 animate-spin" /> : <Bus className="w-4 h-4" />}
-              <span>Track Bus</span>
-            </button>
-          </form>
-
-          {/* Quick Selectable Pills */}
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider shrink-0">Popular:</span>
-            {quickPillBuses.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => {
-                  setSearchQuery(p.id);
-                  loadBusData(p.id);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition border ${
-                  searchQuery === p.id 
-                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300' 
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-200'
-                }`}
-              >
-                <b>{p.label}</b> ({p.route})
-              </button>
-            ))}
+        {/* Bus Search Box */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            loadBusData(searchQuery);
+          }}
+          className="flex items-center gap-2 w-full sm:w-auto"
+        >
+          <div className="relative flex-1 sm:w-64">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Enter bus number (e.g. BUS-101)"
+              className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+            />
           </div>
-        </div>
+          <button
+            type="submit"
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm shrink-0"
+          >
+            Track
+          </button>
+        </form>
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm font-medium">
+        <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800">
           {error}
         </div>
       )}
 
-      {/* Main Bus Tracking Telemetry View */}
-      {busData && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Live Bus Status Card + Route Stops Timetable (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Bus Info Card */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-              <div className="flex items-start justify-between">
+      {/* VIEW MODE 1: ROUTE STOPS TIMELINE & TRIP SUMMARY (Image 2 Top) */}
+      {viewMode === 'timeline' && (
+        <div className="space-y-6">
+          {/* Top Bus Header Card */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20 shrink-0">
+                  <Bus className="w-6 h-6 text-white" />
+                </div>
                 <div>
-                  <span className="px-2.5 py-1 rounded-md text-[10px] font-extrabold uppercase bg-blue-50 text-blue-700 border border-blue-200 tracking-wide">
-                    {busData.type.replace('_', ' ')}
-                  </span>
-                  <h2 className="text-xl font-black text-slate-900 mt-1.5 tracking-tight">
-                    {busData.name}
-                  </h2>
-                  <div className="text-xs text-slate-500 font-mono mt-0.5">
-                    Reg: <b>{busData.registration_number}</b>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black text-slate-900">
+                      Bus {regNo}
+                    </h2>
+                    <button
+                      onClick={() => setIsSaved(!isSaved)}
+                      className={`p-1.5 rounded-lg border transition ${
+                        isSaved ? 'bg-amber-50 text-amber-500 border-amber-200' : 'text-slate-400 hover:text-slate-600 border-slate-200'
+                      }`}
+                      title="Save Route"
+                    >
+                      <Star className={`w-4 h-4 ${isSaved ? 'fill-amber-400 text-amber-500' : ''}`} />
+                    </button>
                   </div>
-                </div>
-
-                <div className="text-right">
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>Live En Route</span>
-                  </span>
-                  <div className="text-xs font-semibold text-slate-500 mt-1">
-                    Speed: <b>{busData.speed_kmh} km/h</b>
-                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {currentStopName} → {busData?.destination_name || 'Bidadi Technical Academy'} • <span className="font-semibold text-slate-700">{busType}</span>
+                  </p>
                 </div>
               </div>
 
-              {/* Next Stop & Seat Availability Highlight */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-100">
-                <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200">
-                  <div className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider">
-                    Next Bus Stop
-                  </div>
-                  <div className="text-sm font-black text-slate-900 mt-0.5 truncate">
-                    {busData.next_stop}
-                  </div>
-                  <div className="text-xs font-bold text-emerald-700 mt-0.5 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    <span>Arriving at {busData.eta_next_stop}</span>
-                  </div>
+              {/* Status Chips */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold">
+                  Next Bus: <span className="text-emerald-700">3 min (07:45 AM)</span>
                 </div>
-
-                <div className="p-3 rounded-xl bg-blue-50/80 border border-blue-200">
-                  <div className="text-[11px] font-bold text-blue-800 uppercase tracking-wider">
-                    Seat Availability
-                  </div>
-                  <div className="text-sm font-black text-slate-900 mt-0.5">
-                    {busData.available_seats} Seats Left
-                  </div>
-                  <div className="text-xs text-blue-700 mt-0.5">
-                    Occupancy: {busData.current_occupancy}/{busData.capacity}
-                  </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">
+                  Departure: 07:15 AM
                 </div>
-              </div>
-
-              {/* Driver Contact */}
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-700">
-                    👨‍✈️
-                  </div>
-                  <div>
-                    <div className="font-bold text-slate-900">{busData.driver_name}</div>
-                    <div className="text-slate-500 text-[11px]">Assigned KSRTC Driver</div>
-                  </div>
+                <div className="px-3.5 py-1.5 rounded-xl bg-emerald-100 text-emerald-800 text-xs font-bold flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span>On Time</span>
                 </div>
-
-                <a
-                  href={`tel:${busData.driver_phone}`}
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold flex items-center gap-1.5 transition"
-                >
-                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Call Driver</span>
-                </a>
               </div>
             </div>
+          </div>
 
-            {/* Stops & Timetable Stepper */}
-            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-emerald-600" />
-                  <h3 className="font-bold text-sm text-slate-900">Bus Stops & Arrival Timestamps</h3>
-                </div>
-                <span className="text-[11px] font-semibold text-slate-500">
-                  {busData.stops?.length || 0} Scheduled Stops
-                </span>
-              </div>
+          {/* 2-Column Split: Left Route Stops, Right Trip Summary */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left Column (Route Stops Timeline) */}
+            <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-6">
+              <h3 className="text-sm font-bold text-slate-900">Route Stops</h3>
 
-              <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                {busData.stops?.map((stop: any, idx: number) => {
-                  const isDeparted = stop.status === 'Departed';
-                  const isNext = stop.status === 'Next Stop';
+              {/* Vertical Stops Timeline */}
+              <div className="relative pl-6 space-y-6 before:absolute before:left-2.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
+                {stops.map((stop: any, idx: number) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === stops.length - 1;
 
                   return (
-                    <div key={idx} className="relative flex items-start justify-between text-xs">
-                      {/* Bullet icon */}
-                      <div className={`absolute -left-6 top-0.5 w-5 h-5 rounded-full flex items-center justify-center border-2 ${
-                        isDeparted
-                          ? 'bg-emerald-600 border-white text-white'
-                          : isNext
-                          ? 'bg-amber-500 border-white text-white animate-pulse'
-                          : 'bg-white border-slate-300 text-slate-500'
-                      }`}>
-                        {isDeparted ? '✓' : idx + 1}
+                    <div key={idx} className="relative flex items-center justify-between">
+                      {/* Node Circle */}
+                      <div
+                        className={`absolute -left-6 w-5 h-5 rounded-full border-4 flex items-center justify-center ${
+                          isFirst
+                            ? 'bg-blue-600 border-white ring-2 ring-blue-500'
+                            : isLast
+                            ? 'bg-emerald-600 border-white ring-2 ring-emerald-500'
+                            : 'bg-white border-slate-300'
+                        }`}
+                      />
+
+                      {/* Stop Info */}
+                      <div>
+                        <h4 className="text-xs font-bold text-slate-800">
+                          {stop.name} {isFirst && '(Start)'} {isLast && '(End)'}
+                        </h4>
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          {stop.taluk || 'Ramanagara Rural Stand'}
+                        </p>
                       </div>
 
-                      <div className="pr-4">
-                        <div className={`font-bold ${isNext ? 'text-slate-900 text-sm' : 'text-slate-800'}`}>
-                          {stop.name}
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          Taluk: {stop.taluk} | Type: {stop.type}
-                        </div>
-                        {isNext && (
-                          <span className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800">
-                            • Approaching Now
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <span className="font-bold font-mono text-slate-900">{stop.scheduled_time}</span>
-                        <div className="text-[10px] text-slate-400 capitalize">{stop.status}</div>
+                      {/* Timestamp */}
+                      <div className="text-xs font-semibold text-slate-600">
+                        {stop.scheduled_time}
                       </div>
                     </div>
                   );
                 })}
               </div>
+
+              {/* Stats Bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Distance</span>
+                  <span className="font-extrabold text-slate-800 mt-0.5 block">34 km</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Total Stops</span>
+                  <span className="font-extrabold text-slate-800 mt-0.5 block">{stops.length || 8}</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Est. Travel Time</span>
+                  <span className="font-extrabold text-slate-800 mt-0.5 block">45 min</span>
+                </div>
+                <div>
+                  <span className="text-slate-400 font-semibold block text-[11px]">Bus Type</span>
+                  <span className="font-extrabold text-slate-800 mt-0.5 block">{busType}</span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => setIsSaved(!isSaved)}
+                  className={`flex-1 py-3 rounded-xl border text-xs font-bold flex items-center justify-center gap-2 transition ${
+                    isSaved ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  <Star className={`w-4 h-4 ${isSaved ? 'fill-amber-400 text-amber-500' : ''}`} />
+                  <span>{isSaved ? 'Route Saved' : 'Save Route'}</span>
+                </button>
+
+                <button
+                  onClick={() => setViewMode('live_map')}
+                  className="flex-1 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition shadow-sm shadow-blue-500/20"
+                >
+                  <Navigation className="w-4 h-4" />
+                  <span>Track Live</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column (Trip Summary & Reminder) */}
+            <div className="space-y-5">
+              {/* Trip Summary Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Trip Summary
+                </h3>
+
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-blue-600 mt-1 shrink-0" />
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-medium block">From</span>
+                      <span className="text-xs font-bold text-slate-800">{currentStopName}</span>
+                    </div>
+                  </div>
+
+                  <div className="border-l-2 border-dashed border-slate-200 ml-1.5 h-4" />
+
+                  <div className="flex items-start gap-2.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 mt-1 shrink-0" />
+                    <div>
+                      <span className="text-[11px] text-slate-400 font-medium block">To</span>
+                      <span className="text-xs font-bold text-slate-800">{busData?.destination_name || 'Bidadi Technical Academy'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-100 space-y-2 text-xs">
+                  <div className="flex justify-between text-slate-600">
+                    <span className="text-slate-400">Estimated Travel Time:</span>
+                    <span className="font-bold text-slate-800">45 min (Approx.)</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span className="text-slate-400">Distance:</span>
+                    <span className="font-bold text-slate-800">34 km</span>
+                  </div>
+                  <div className="flex justify-between text-slate-600">
+                    <span className="text-slate-400">Total Stops:</span>
+                    <span className="font-bold text-slate-800">{stops.length || 8}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Set Reminder Card */}
+              <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-3">
+                <div className="flex items-center gap-2">
+                  <Bell className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-bold text-slate-900">Set Reminder</h4>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Get notified 5 minutes before the bus arrives at your stop.
+                </p>
+                <button
+                  onClick={() => setIsReminderSet(!isReminderSet)}
+                  className={`w-full py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
+                    isReminderSet
+                      ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                      : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  {isReminderSet ? <Check className="w-4 h-4 text-emerald-600" /> : <Bell className="w-4 h-4 text-slate-500" />}
+                  <span>{isReminderSet ? 'Reminder Set for 07:40 AM' : 'Set Reminder'}</span>
+                </button>
+              </div>
+
+              {/* Help Center */}
+              <div className="p-4 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs text-slate-600">
+                <div className="flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4 text-slate-400" />
+                  <span>Need help? Visit Help Center</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-slate-400" />
+              </div>
             </div>
           </div>
+        </div>
+      )}
 
-          {/* Right Column: Live Interactive Map (7 cols) */}
-          <div className="lg:col-span-7 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col h-[580px]">
-            <div className="flex items-center justify-between mb-3 px-1">
-              <div className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-emerald-600" />
-                <h3 className="font-bold text-sm text-slate-900">
-                  Live Bus Movement & Route Path
-                </h3>
-              </div>
-              <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+      {/* VIEW MODE 2: INTERACTIVE LIVE MAP TRACKING (Image 2 Bottom) */}
+      {viewMode === 'live_map' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Leaflet Map (Image 2 Bottom Map Area) */}
+          <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200/80 p-3 shadow-sm h-[600px] flex flex-col">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 mb-2">
+              <span className="text-xs font-bold text-slate-800 flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                GPS Signal Live
+                Live GPS Satellite Telemetry • Bus {regNo}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400">
+                Speed: {busData?.speed_kmh || 42} km/h
               </span>
             </div>
+            <div ref={mapContainerRef} className="flex-1 w-full rounded-xl overflow-hidden" />
+          </div>
 
-            <div className="flex-1 rounded-xl overflow-hidden border border-slate-200 shadow-inner">
-              <div ref={mapContainerRef} className="w-full h-full" />
+          {/* Right Column: Live Tracking Panel (Image 2 Bottom Right Panel) */}
+          <div className="lg:col-span-4 bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-5">
+            {/* Bus Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white">
+                  <Bus className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">
+                    Bus {regNo}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {currentStopName} → College • Ordinary
+                  </p>
+                </div>
+              </div>
+              <button className="text-slate-400 hover:text-slate-600 p-1">
+                <MoreVertical className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Stop -> Next Stop Banner */}
+            <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-100 space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-semibold">Current Stop</span>
+                <span className="text-slate-400 font-semibold">Next Stop</span>
+              </div>
+              <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+                <span className="truncate max-w-[120px]">{currentStopName}</span>
+                <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span className="truncate max-w-[120px] text-blue-600">{nextStopName}</span>
+              </div>
+              <div className="text-right text-[11px] text-slate-400">
+                (5.6 km away)
+              </div>
+            </div>
+
+            {/* Estimated Arrival Countdown */}
+            <div className="text-center py-2">
+              <div className="text-xs text-slate-400 font-semibold">
+                Estimated Arrival at Next Stop
+              </div>
+              <div className="text-3xl font-black text-emerald-600 mt-1 flex items-center justify-center gap-2">
+                <span>5 min</span>
+                <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
+                  On Time
+                </span>
+              </div>
+              <div className="text-xs text-slate-500 mt-1">
+                Expected at 07:50 AM
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between text-[11px] font-semibold text-slate-500">
+                <span>Progress</span>
+                <span>4 of 8 stops completed (50%)</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
+                <div className="h-full bg-blue-600 rounded-full transition-all duration-500" style={{ width: '50%' }} />
+              </div>
+            </div>
+
+            {/* Stops mini list */}
+            <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
+              <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                  <span>{currentStopName}</span>
+                </div>
+                <span>07:35 AM</span>
+              </div>
+              <div className="flex items-center justify-between text-blue-700 font-bold bg-blue-50/60 p-2 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-ping" />
+                  <span>{nextStopName}</span>
+                </div>
+                <span>07:50 AM</span>
+              </div>
+              <div className="flex items-center justify-between text-slate-400">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-slate-300" />
+                  <span>{busData?.destination_name || 'Bidadi Technical Academy'}</span>
+                </div>
+                <span>08:15 AM</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2 pt-2">
+              <button
+                onClick={() => setIsReminderSet(!isReminderSet)}
+                className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-sm"
+              >
+                <Bell className="w-4 h-4" />
+                <span>{isReminderSet ? 'Notifications Active' : 'Notify Me'}</span>
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsSaved(!isSaved)}
+                  className={`flex-1 py-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    isSaved ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                  }`}
+                >
+                  <Star className={`w-3.5 h-3.5 ${isSaved ? 'fill-amber-400 text-amber-500' : ''}`} />
+                  <span>{isSaved ? 'Saved' : 'Save Route'}</span>
+                </button>
+
+                <button
+                  onClick={handleShare}
+                  className="flex-1 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 text-xs font-bold transition flex items-center justify-center gap-1.5"
+                >
+                  {sharedToast ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Share2 className="w-3.5 h-3.5" />}
+                  <span>{sharedToast ? 'Link Copied' : 'Share Trip'}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Footer timestamp */}
+            <div className="pt-2 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1">
+              <Clock className="w-3 h-3" />
+              <span>Last updated: Just now</span>
             </div>
           </div>
         </div>
@@ -395,4 +618,3 @@ export const LiveBusTracker: React.FC<BusTrackerProps> = ({
     </div>
   );
 };
-
