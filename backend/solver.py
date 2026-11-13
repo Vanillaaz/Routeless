@@ -478,10 +478,10 @@ def solve_dynamic_rescue(
     # 4. Formulate Google OR-Tools Mathematical Optimization Model (when students need solving)
     vehicle_assigned_student_ids: Dict[str, List[str]] = {v.id: [] for v in usable_vehicles}
     solved_assigned_stu_ids: Set[str] = set()
-    solver_status = pywraplp.Solver.FEASIBLE
+    solver_status = pywraplp.Solver.FEASIBLE if (ORTOOLS_AVAILABLE and pywraplp) else 1
     solver_obj_val = 0.0
 
-    if students_to_solve:
+    if students_to_solve and ORTOOLS_AVAILABLE and pywraplp:
         solver = pywraplp.Solver.CreateSolver('CBC')
         if not solver:
             solver = pywraplp.Solver.CreateSolver('SCIP')
@@ -646,6 +646,18 @@ def solve_dynamic_rescue(
                 if var.solution_value() > 0.5:
                     vehicle_assigned_student_ids[v_id].append(s_id)
                     solved_assigned_stu_ids.add(s_id)
+    elif students_to_solve:
+        # Fallback heuristic solver (for serverless environments without C++ OR-Tools binaries)
+        sorted_stus = sorted(students_to_solve, key=lambda s: (0 if s.exam_priority == "P1" else (1 if s.exam_priority == "P2" else 2)))
+        for s in sorted_stus:
+            orig_id = s.pickup_location_id or s.village_id
+            for v in usable_vehicles:
+                if len(vehicle_assigned_student_ids[v.id]) < v.capacity:
+                    feasible, _, _ = road_graph.is_path_feasible(orig_id, s.destination_id)
+                    if feasible:
+                        vehicle_assigned_student_ids[v.id].append(s.id)
+                        solved_assigned_stu_ids.add(s.id)
+                        break
 
     elapsed_ms = (time.perf_counter() - start_time) * 1000
 
