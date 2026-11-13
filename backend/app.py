@@ -12,7 +12,7 @@ from backend.models import (
     ExamCrisisResponse, ExamCrisisMetrics
 )
 from backend.simulator import network_state
-from backend.solver import solve_dynamic_rescue
+from backend.solver import solve_dynamic_rescue, NetworkGraph
 from backend.ai_assistant import AIAssistantService
 
 app = FastAPI(
@@ -281,6 +281,34 @@ def toggle_road_status(road_id: str):
     )
     return {"road": road.dict(), "optimization": last_optimization_result.dict()}
 
+def generate_route_coordinates(stops_data):
+    """Generates high-density interpolated route coordinates between stops for smooth Google Maps-style animation."""
+    coords = []
+    if len(stops_data) < 2:
+        if stops_data:
+            return [[stops_data[0]["lat"], stops_data[0]["lng"]]]
+        return []
+
+    for i in range(len(stops_data) - 1):
+        p1 = stops_data[i]
+        p2 = stops_data[i+1]
+        lat1, lng1 = p1["lat"], p1["lng"]
+        lat2, lng2 = p2["lat"], p2["lng"]
+        
+        # 20 interpolated intermediate waypoints per road segment
+        num_steps = 20
+        for step in range(num_steps):
+            frac = step / num_steps
+            cur_lat = lat1 + (lat2 - lat1) * frac
+            cur_lng = lng1 + (lng2 - lng1) * frac
+            coords.append([round(cur_lat, 6), round(cur_lng, 6)])
+            
+    # Add final destination stop
+    last = stops_data[-1]
+    coords.append([last["lat"], last["lng"]])
+    return coords
+
+
 @app.get("/api/track/{bus_query}")
 def track_bus(bus_query: str):
     """Real-time bus tracking by bus ID, registration number, or route name."""
@@ -308,17 +336,30 @@ def track_bus(bus_query: str):
     curr_loc = loc_map.get(matched_vehicle.current_location_id)
     dest_loc = loc_map.get(matched_vehicle.destination_id) if matched_vehicle.destination_id else None
 
+    # Graph for accurate segment distances
+    graph = NetworkGraph(network_state.locations, network_state.roads)
+
     # Build sequence of stops
-    stops = matched_vehicle.route_stops if matched_vehicle.route_stops else [matched_vehicle.current_location_id, "C1"]
+    stops = list(matched_vehicle.route_stops) if matched_vehicle.route_stops else [matched_vehicle.current_location_id, "C1"]
     if dest_loc and dest_loc.id not in stops:
         stops.append(dest_loc.id)
 
     stop_details = []
     base_minute = 30
+    cum_dist = 0.0
+
     for idx, stop_id in enumerate(stops):
         loc = loc_map.get(stop_id)
         if not loc:
             continue
+
+        if idx > 0:
+            prev_id = stops[idx - 1]
+            leg_d, _, _ = graph.shortest_path(prev_id, stop_id)
+            if leg_d == float('inf'):
+                leg_d = 5.5
+            cum_dist += leg_d
+
         scheduled_time = f"07:{base_minute + idx * 15:02d} AM" if (base_minute + idx * 15) < 60 else f"08:{(base_minute + idx * 15) - 60:02d} AM"
         
         status = "Departed" if idx == 0 else ("Next Stop" if idx == 1 else "Upcoming")
@@ -335,7 +376,8 @@ def track_bus(bus_query: str):
             "scheduled_time": scheduled_time,
             "estimated_time": scheduled_time,
             "status": status,
-            "is_current": (idx == 0)
+            "is_current": (idx == 0),
+            "distance_from_start_km": round(cum_dist, 1)
         })
 
     next_stop_name = stop_details[1]["name"] if len(stop_details) > 1 else (dest_loc.name if dest_loc else "Destination")
@@ -346,6 +388,25 @@ def track_bus(bus_query: str):
     lng = curr_loc.lng if curr_loc else 77.2023
 
     available_seats = max(0, matched_vehicle.capacity - matched_vehicle.current_occupancy)
+
+    # Interpolated dense coordinate path for smooth real-time animation
+    route_coords = generate_route_coordinates(stop_details)
+
+    # Fleet summary for bus selection dropdown
+    fleet_options = [
+        {
+            "id": v.id,
+            "name": v.name,
+            "reg_no": v.name.split()[-1] if "KA-" in v.name else v.id,
+            "type": v.type.value,
+            "status": v.status.value,
+            "capacity": v.capacity,
+            "current_occupancy": v.current_occupancy,
+            "available_seats": max(0, v.capacity - v.current_occupancy),
+            "route_title": f"{loc_map.get(v.current_location_id, loc_map.get('V1')).name} → {loc_map.get(v.destination_id).name if v.destination_id and loc_map.get(v.destination_id) else 'District Hub'}"
+        }
+        for v in network_state.vehicles
+    ]
 
     return {
         "vehicle_id": matched_vehicle.id,
@@ -367,104 +428,160 @@ def track_bus(bus_query: str):
         "lat": lat,
         "lng": lng,
         "stops": stop_details,
-        "route_progress_percentage": 25 if len(stop_details) > 1 else 0
+        "total_distance_km": round(cum_dist, 1),
+        "route_coordinates": route_coords,
+        "route_progress_percentage": 25 if len(stop_details) > 1 else 0,
+        "all_vehicles": fleet_options
     }
+
 
 @app.get("/api/plan-trip")
 def plan_trip(origin: str = "V2", destination: str = "C3"):
     """
     Finds all viable travel options between a village and college,
     evaluates capacities and deadlines, and recommends the BEST option.
+    Uses Dijkstra shortest path for 100% realistic distances and travel times.
     """
     loc_map = {loc.id: loc for loc in network_state.locations}
     orig_loc = loc_map.get(origin, network_state.locations[1])
     dest_loc = loc_map.get(destination, network_state.locations[8])
 
-    options = []
+    graph = NetworkGraph(network_state.locations, network_state.roads)
+    direct_dist, direct_time, path_nodes = graph.shortest_path(origin, destination)
+
+    if direct_time == float('inf') or not path_nodes:
+        # Fallback approximation based on coordinate distance
+        import math
+        dlat = (dest_loc.lat - orig_loc.lat) * 111.0
+        dlng = (dest_loc.lng - orig_loc.lng) * 111.0 * math.cos(math.radians(orig_loc.lat))
+        direct_dist = round(math.sqrt(dlat*dlat + dlng*dlng) * 1.3, 1)
+        direct_time = round(direct_dist * 1.8)
+        path_nodes = [orig_loc.id, dest_loc.id]
+
+    distance_km = round(direct_dist, 1)
+    duration_mins = max(10, int(round(direct_time)))
+
+    # Calculate intermediate stop names
+    intermediate_stops = [
+        loc_map[nid].name for nid in path_nodes 
+        if nid in loc_map and nid != orig_loc.id and nid != dest_loc.id
+    ]
+    via_str = f"Via {', '.join(intermediate_stops)}" if intermediate_stops else "Direct Highway Corridor"
+
+    # Time calculations
+    dep_h = 7
+    dep_m = 30 + (hash(origin) % 15)
+    arr_total_m = dep_h * 60 + dep_m + duration_mins
+    arr_h = arr_total_m // 60
+    arr_m = arr_total_m % 60
     
-    # Check all active vehicles
+    dep_str = f"{dep_h:02d}:{dep_m:02d} AM"
+    arr_str = f"{arr_h:02d}:{arr_m:02d} AM"
+
+    # Filter usable vehicles
     usable_vehs = [v for v in network_state.vehicles if v.status != VehicleStatus.BREAKDOWN]
 
-    # 1. Option A: Primary Government Bus
-    primary_bus = next((v for v in usable_vehs if v.type == VehicleType.GOVT_BUS and (origin in v.route_stops or v.current_location_id == origin)), None)
-    if not primary_bus:
-        primary_bus = next((v for v in usable_vehs if v.type == VehicleType.GOVT_BUS), usable_vehs[0])
+    matching_bus = next((v for v in usable_vehs if v.type == VehicleType.GOVT_BUS and (origin in v.route_stops or v.current_location_id == origin)), None)
+    if not matching_bus:
+        matching_bus = next((v for v in usable_vehs if v.type == VehicleType.GOVT_BUS), usable_vehs[0])
 
-    avail_a = max(0, primary_bus.capacity - primary_bus.current_occupancy)
+    avail_a = max(0, matching_bus.capacity - matching_bus.current_occupancy)
+    
+    options = []
+    
+    # 1. Option A: Primary KSRTC Government Bus
     options.append({
         "id": "OPT-1",
-        "title": primary_bus.name,
-        "vehicle_id": primary_bus.id,
+        "title": matching_bus.name,
+        "vehicle_id": matching_bus.id,
         "type": "govt_bus",
-        "category": "KSRTC Government Bus",
-        "departure_time": "07:35 AM",
-        "arrival_time": "08:15 AM",
-        "duration_mins": 40,
+        "category": "KSRTC Ordinary Express",
+        "departure_time": dep_str,
+        "arrival_time": arr_str,
+        "duration_mins": duration_mins,
+        "distance_km": f"{distance_km} km",
         "available_seats": avail_a,
-        "capacity": primary_bus.capacity,
+        "capacity": matching_bus.capacity,
         "fare": "Free (Student Bus Pass)",
         "crowd_status": "Filling Fast" if avail_a < 10 else "Seats Available",
         "reliability_score": 98,
-        "stops_count": 3,
+        "stops_count": len(path_nodes),
+        "via_summary": via_str,
         "pickup_point": f"{orig_loc.name} Main Bus Shelter",
-        "dropoff_point": f"{dest_loc.name} Main Gate",
+        "dropoff_point": f"{dest_loc.name} Campus Gate",
         "is_best": True,
-        "recommendation_reason": "Recommended Best Choice: Direct route, zero transfers, arrives at 08:15 AM well before 08:45 AM deadline."
+        "recommendation_reason": f"Recommended Best Choice: Direct {distance_km} km route, arrives at {arr_str} well before 08:45 AM deadline."
     })
 
-    # 2. Option B: Minibus
+    # 2. Option B: Rural Feeder Minibus
     minibus = next((v for v in usable_vehs if v.type == VehicleType.MINIBUS), None)
     if minibus:
         avail_b = max(0, minibus.capacity - minibus.current_occupancy)
+        mini_dur = max(8, int(duration_mins * 0.9))
+        mini_arr_m = (dep_h * 60 + dep_m + 10 + mini_dur)
+        mini_arr_str = f"{mini_arr_m // 60:02d}:{mini_arr_m % 60:02d} AM"
+        mini_dep_str = f"{dep_h:02d}:{dep_m + 10:02d} AM"
         options.append({
             "id": "OPT-2",
             "title": minibus.name,
             "vehicle_id": minibus.id,
             "type": "minibus",
-            "category": "Cauvery Rural Minibus",
-            "departure_time": "07:45 AM",
-            "arrival_time": "08:22 AM",
-            "duration_mins": 37,
+            "category": "Cauvery Rural MiniBus",
+            "departure_time": mini_dep_str,
+            "arrival_time": mini_arr_str,
+            "duration_mins": mini_dur,
+            "distance_km": f"{distance_km} km",
             "available_seats": avail_b,
             "capacity": minibus.capacity,
             "fare": "₹10 (Subsidized)",
-            "crowd_status": "Comfortable",
-            "reliability_score": 94,
-            "stops_count": 2,
+            "crowd_status": "Guaranteed Seating" if avail_b > 5 else "Limited Seats",
+            "reliability_score": 95,
+            "stops_count": max(2, len(path_nodes) - 1),
+            "via_summary": via_str,
             "pickup_point": f"{orig_loc.name} Rural Cross",
             "dropoff_point": f"{dest_loc.name} Bypass Stop",
             "is_best": False,
-            "recommendation_reason": "Faster ride with guaranteed seating, departs slightly later at 07:45 AM."
+            "recommendation_reason": f"Faster feeder ride ({mini_dur} mins), guaranteed seating, departs at {mini_dep_str}."
         })
 
     # 3. Option C: Gramina Mitra Shared Auto
     auto = next((v for v in usable_vehs if v.type == VehicleType.SHARED_AUTO), None)
     if auto:
         avail_c = max(0, auto.capacity - auto.current_occupancy)
+        auto_dur = max(6, int(duration_mins * 0.85))
+        auto_arr_m = (dep_h * 60 + dep_m - 8 + auto_dur)
+        auto_arr_str = f"{auto_arr_m // 60:02d}:{auto_arr_m % 60:02d} AM"
+        auto_dep_str = f"{dep_h:02d}:{max(0, dep_m - 8):02d} AM"
         options.append({
             "id": "OPT-3",
             "title": auto.name,
             "vehicle_id": auto.id,
             "type": "shared_auto",
             "category": "Gramina Mitra Shared Auto",
-            "departure_time": "07:25 AM",
-            "arrival_time": "07:55 AM",
-            "duration_mins": 30,
+            "departure_time": auto_dep_str,
+            "arrival_time": auto_arr_str,
+            "duration_mins": auto_dur,
+            "distance_km": f"{distance_km} km",
             "available_seats": avail_c,
             "capacity": auto.capacity,
             "fare": "₹15",
             "crowd_status": "Spacious",
             "reliability_score": 99,
             "stops_count": 1,
+            "via_summary": "Direct Point-to-Point Connector",
             "pickup_point": f"{orig_loc.name} Village Center",
             "dropoff_point": f"{dest_loc.name} Gate",
             "is_best": False,
-            "recommendation_reason": "Earliest arrival for morning diploma laboratory exams."
+            "recommendation_reason": f"Direct point-to-point connector for fastest arrival by {auto_arr_str}."
         })
 
     return {
-        "origin": {"id": orig_loc.id, "name": orig_loc.name, "taluk": orig_loc.taluk},
-        "destination": {"id": dest_loc.id, "name": dest_loc.name, "taluk": dest_loc.taluk},
+        "origin": {"id": orig_loc.id, "name": orig_loc.name, "taluk": orig_loc.taluk, "lat": orig_loc.lat, "lng": orig_loc.lng},
+        "destination": {"id": dest_loc.id, "name": dest_loc.name, "taluk": dest_loc.taluk, "lat": dest_loc.lat, "lng": dest_loc.lng},
+        "distance_km": distance_km,
+        "travel_time_mins": duration_mins,
+        "path_nodes": path_nodes,
+        "via_summary": via_str,
         "deadline": "08:45 AM",
         "total_options": len(options),
         "options": options

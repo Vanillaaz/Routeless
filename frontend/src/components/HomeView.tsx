@@ -10,14 +10,16 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Compass,
+  ArrowLeftRight
 } from 'lucide-react';
 import type { Vehicle, Location } from '../types';
 
 interface HomeViewProps {
   locations: Location[];
   vehicles: Vehicle[];
-  onSearchRoute: (query: string) => void;
+  onSearchRoute: (query: string, originId?: string, destId?: string) => void;
   onTrackBus: (busId: string) => void;
   onSelectStop: (stopId: string) => void;
   onNavigateTab: (tab: string) => void;
@@ -31,23 +33,45 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSelectStop,
   onNavigateTab
 }) => {
-  const [searchInput, setSearchInput] = useState('');
+  const [selectedOrigin, setSelectedOrigin] = useState<string>('V2'); // Byramangala
+  const [selectedDest, setSelectedDest] = useState<string>('C3'); // Bidadi Tech
+  const [textSearch, setTextSearch] = useState<string>('');
+
+  const villageLocations = locations.filter(l => l.type === 'village' || l.type === 'junction');
+  const collegeLocations = locations.filter(l => l.type === 'college');
+
+  const availableOrigins = villageLocations.length > 0 ? villageLocations : locations;
+  const availableDests = collegeLocations.length > 0 ? collegeLocations : locations;
 
   const quickSuggestions = [
-    { label: 'Byramangala → Bidadi Tech', query: 'Byramangala to Bidadi' },
-    { label: 'Kailancha → Ramanagara College', query: 'Kailancha to Ramanagara' },
-    { label: 'Doddamallur → Channapatna ITI', query: 'Doddamallur to Channapatna' },
-    { label: 'Sugganahalli → Polytechnic', query: 'Sugganahalli to Ramanagara' }
+    { label: 'Byramangala → Bidadi Tech', orig: 'V2', dest: 'C3', text: 'Byramangala to Bidadi' },
+    { label: 'Kailancha → Ramanagara College', orig: 'V4', dest: 'C1', text: 'Kailancha to Ramanagara' },
+    { label: 'Doddamallur → Channapatna ITI', orig: 'V1', dest: 'C2', text: 'Doddamallur to Channapatna' },
+    { label: 'Sugganahalli → Polytechnic', orig: 'V7', dest: 'C1', text: 'Sugganahalli to Ramanagara' }
   ];
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
+  const handlePlanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchInput.trim()) {
-      onSearchRoute(searchInput.trim());
+    const origLoc = locations.find(l => l.id === selectedOrigin);
+    const destLoc = locations.find(l => l.id === selectedDest);
+    const q = `${origLoc?.name || 'Origin'} to ${destLoc?.name || 'Destination'}`;
+    onSearchRoute(q, selectedOrigin, selectedDest);
+  };
+
+  const handleTextSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (textSearch.trim()) {
+      onSearchRoute(textSearch.trim());
     }
   };
 
-  // 3 Nearby stops (villages or colleges)
+  const handleSwap = () => {
+    const temp = selectedOrigin;
+    setSelectedOrigin(selectedDest);
+    setSelectedDest(temp);
+  };
+
+  // Nearby stops
   const nearbyStops = locations.slice(0, 3).map((loc, idx) => ({
     id: loc.id,
     name: loc.name,
@@ -56,47 +80,93 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }));
 
   // Suggested active buses
-  const suggestedBuses = vehicles.filter(v => v.status !== 'breakdown').slice(0, 3);
+  const suggestedBuses = vehicles.filter(v => v.status !== 'breakdown').slice(0, 4);
 
   return (
     <div className="space-y-6">
-      {/* Hero Welcome Card matching Image 4 */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm">
-        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-          Hello! Where would you like to go?
-        </h1>
-        <p className="text-xs text-slate-500 mt-1">
-          Explore smart bus allocations, real-time tracking, and verified rural transit routes.
-        </p>
+      {/* Hero Welcome Card with Origin & Destination Selector (Requirement 3) */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-sm space-y-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Hello! Where would you like to travel today?
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Intelligent rural bus allocation, live satellite GPS tracking, and guaranteed student connections.
+          </p>
+        </div>
 
-        {/* Big Search Box */}
-        <form onSubmit={handleSearchSubmit} className="mt-5 flex flex-col sm:flex-row gap-2.5">
-          <div className="relative flex-1">
-            <Search className="w-5 h-5 text-slate-400 absolute left-4 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Enter bus number or route (e.g., Byramangala to Bidadi)"
-              className="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-            />
+        {/* Location Dropdowns Form */}
+        <form onSubmit={handlePlanSubmit} className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end p-4 rounded-xl bg-slate-50 border border-slate-100">
+          {/* Origin */}
+          <div className="md:col-span-5 space-y-1">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-blue-600" />
+              <span>Current Location / Boarding Stop</span>
+            </label>
+            <select
+              value={selectedOrigin}
+              onChange={(e) => setSelectedOrigin(e.target.value)}
+              className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs cursor-pointer"
+            >
+              {availableOrigins.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name} ({loc.taluk} Taluk)
+                </option>
+              ))}
+            </select>
           </div>
-          <button
-            type="submit"
-            className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl shadow-sm transition shrink-0"
-          >
-            Search
-          </button>
+
+          {/* Swap Button */}
+          <div className="md:col-span-1 flex items-center justify-center pb-1">
+            <button
+              type="button"
+              onClick={handleSwap}
+              className="p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition shadow-2xs cursor-pointer"
+              title="Swap Locations"
+            >
+              <ArrowLeftRight className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Destination */}
+          <div className="md:col-span-4 space-y-1">
+            <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+              <Compass className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Destination College / Campus</span>
+            </label>
+            <select
+              value={selectedDest}
+              onChange={(e) => setSelectedDest(e.target.value)}
+              className="w-full text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 shadow-2xs cursor-pointer"
+            >
+              {availableDests.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.name} ({loc.taluk} Taluk)
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Find Routes Button */}
+          <div className="md:col-span-2">
+            <button
+              type="submit"
+              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl transition shadow-sm cursor-pointer"
+            >
+              Find Routes
+            </button>
+          </div>
         </form>
 
         {/* Quick Suggestions Pills */}
-        <div className="mt-4 flex items-center flex-wrap gap-2 text-xs">
+        <div className="flex items-center flex-wrap gap-2 text-xs pt-1">
           <span className="text-slate-400 font-semibold mr-1">Quick Suggestions :</span>
           {quickSuggestions.map((item, i) => (
             <button
               key={i}
-              onClick={() => onSearchRoute(item.query)}
-              className="px-3 py-1.5 rounded-lg bg-blue-50/80 hover:bg-blue-100/90 text-blue-700 font-medium transition border border-blue-100"
+              type="button"
+              onClick={() => onSearchRoute(item.text, item.orig, item.dest)}
+              className="px-3 py-1.5 rounded-lg bg-blue-50/80 hover:bg-blue-100 text-blue-700 font-medium transition border border-blue-100 cursor-pointer"
             >
               {item.label}
             </button>
@@ -104,7 +174,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Main Grid: Left 2/3 Content, Right 1/3 Live Updates */}
+      {/* Main Grid: Left Content, Right Live Updates */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Column (Nearby Stops + Suggested Routes + Saved Routes) */}
         <div className="lg:col-span-2 space-y-6">
@@ -117,7 +187,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
               <button
                 onClick={() => onNavigateTab('nearby')}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
               >
                 <span>View all</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -152,11 +222,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Bus className="w-4 h-4 text-blue-600" />
-                <h3 className="text-sm font-bold text-slate-900">Suggested Routes</h3>
+                <h3 className="text-sm font-bold text-slate-900">Live Operating Fleet</h3>
               </div>
               <button
                 onClick={() => onNavigateTab('search')}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
               >
                 <span>View all</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -180,7 +250,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           {bus.type === 'govt_bus' ? 'Ordinary' : bus.type === 'minibus' ? 'MiniBus' : 'Auto'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
+                      <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[160px]">
                         {bus.current_location_name} → College
                       </p>
                       <p className="text-[11px] text-emerald-600 font-semibold">
@@ -190,7 +260,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   </div>
                   <button
                     onClick={() => onTrackBus(bus.id)}
-                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                    className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-2xs cursor-pointer"
                   >
                     Track
                   </button>
@@ -204,11 +274,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Star className="w-4 h-4 text-blue-600" />
-                <h3 className="text-sm font-bold text-slate-900">Saved Routes</h3>
+                <h3 className="text-sm font-bold text-slate-900">Saved Student Routes</h3>
               </div>
               <button
                 onClick={() => onNavigateTab('saved')}
-                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                className="text-xs font-semibold text-blue-600 hover:text-blue-700 flex items-center gap-1 cursor-pointer"
               >
                 <span>View all</span>
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -226,7 +296,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <button
                   onClick={() => onTrackBus('BUS-101')}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-2xs cursor-pointer"
                 >
                   Track
                 </button>
@@ -242,7 +312,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
                 <button
                   onClick={() => onTrackBus('BUS-104')}
-                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-sm"
+                  className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition shadow-2xs cursor-pointer"
                 >
                   Track
                 </button>
@@ -251,16 +321,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </div>
         </div>
 
-        {/* Right Column: Live Updates Ticker matching Image 4 */}
+        {/* Right Column: Live Updates Ticker */}
         <div>
-          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
+          <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm space-y-4">
+            <div className="flex items-center gap-2">
               <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <h3 className="text-sm font-bold text-slate-900">Live Updates</h3>
             </div>
 
-            <div className="space-y-3.5">
-              {/* Item 1 */}
+            <div className="space-y-3">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <Bus className="w-4 h-4" />
@@ -276,7 +345,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
 
-              {/* Item 2 */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                   <Star className="w-4 h-4" />
@@ -287,12 +355,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <span className="text-[10px] text-slate-400">10 min ago</span>
                   </div>
                   <p className="text-[11px] text-slate-600 mt-0.5">
-                    Kozhikode → Kannur schedule pinned to your favorites.
+                    Doddamallur → Channapatna schedule pinned to favorites.
                   </p>
                 </div>
               </div>
 
-              {/* Item 3 */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
                   <AlertTriangle className="w-4 h-4" />
@@ -308,7 +375,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               </div>
 
-              {/* Item 4 */}
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                   <ShieldCheck className="w-4 h-4" />
@@ -325,7 +391,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </div>
 
-            {/* Bottom Tip */}
             <div className="mt-4 pt-4 border-t border-slate-100">
               <div className="text-[11px] text-slate-400 flex items-center gap-1.5">
                 <Clock className="w-3.5 h-3.5" />

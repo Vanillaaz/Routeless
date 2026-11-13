@@ -18,6 +18,8 @@ export function App() {
   const [activeTab, setActiveTab] = useState<string>('home');
   const [selectedBusId, setSelectedBusId] = useState<string>('BUS-101');
   const [searchQuery, setSearchQuery] = useState<string>('Byramangala to Bidadi');
+  const [searchOrigin, setSearchOrigin] = useState<string>('V2');
+  const [searchDest, setSearchDest] = useState<string>('C3');
   const [selectedStopId, setSelectedStopId] = useState<string>('V1');
   const [networkData, setNetworkData] = useState<NetworkStateResponse | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -48,7 +50,7 @@ export function App() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleGlobalSearch = (query: string) => {
+  const handleGlobalSearch = (query: string, originId?: string, destId?: string) => {
     // If it looks like a bus ID or registration, track directly
     const upper = query.toUpperCase();
     if (upper.startsWith('BUS-') || upper.startsWith('KA-') || upper.startsWith('MINI-') || upper.startsWith('AUTO-')) {
@@ -56,6 +58,8 @@ export function App() {
       setActiveTab('tracker');
     } else {
       setSearchQuery(query);
+      if (originId) setSearchOrigin(originId);
+      if (destId) setSearchDest(destId);
       setActiveTab('search');
     }
     setIsMobileMenuOpen(false);
@@ -168,6 +172,8 @@ export function App() {
           {activeTab === 'search' && networkData && (
             <SearchResultsView
               initialQuery={searchQuery}
+              initialOrigin={searchOrigin}
+              initialDest={searchDest}
               locations={networkData.locations}
               vehicles={networkData.vehicles}
               onTrackBus={handleTrackBus}
@@ -183,6 +189,7 @@ export function App() {
               allVehicles={networkData.vehicles}
               allLocations={networkData.locations}
               onBackToResults={() => setActiveTab('search')}
+              onNavigateSettings={() => setActiveTab('settings')}
             />
           )}
 

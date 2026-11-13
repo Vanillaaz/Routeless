@@ -276,3 +276,4 @@ export const NotificationsView: React.FC = () => {
     </div>
   );
 };
+
