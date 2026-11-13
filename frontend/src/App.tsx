@@ -4,6 +4,7 @@ import { LiveBusTracker } from './components/LiveBusTracker';
 import { SmartTripPlanner } from './components/SmartTripPlanner';
 import { BusStopsDirectory } from './components/BusStopsDirectory';
 import { AITravelAssistantView } from './components/AITravelAssistantView';
+import { ExamCrisisCommandCenter } from './components/ExamCrisisCommandCenter';
 import { fetchNetworkState } from './api';
 import type { NetworkStateResponse } from './types';
 import { Bus, AlertCircle } from 'lucide-react';
@@ -109,6 +110,14 @@ export function App() {
           <AITravelAssistantView
             optimization={networkData?.last_optimization || null}
             scenarioName={networkData?.scenario_name || 'Regular Morning Commute'}
+          />
+        )}
+
+        {activeTab === 'exam_crisis' && (
+          <ExamCrisisCommandCenter
+            initialNetworkData={networkData}
+            onRefreshGlobalState={loadState}
+            onNavigateTab={(tab) => setActiveTab(tab)}
           />
         )}
       </main>

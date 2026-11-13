@@ -1,4 +1,4 @@
-﻿# GRAMMOVE AI Unified Startup Script
+# GRAMMOVE AI Unified Startup Script
 Write-Host "=========================================================" -ForegroundColor Green
 Write-Host "  GRAMMOVE AI — Rural Student Mobility Network  " -ForegroundColor Cyan
 Write-Host "=========================================================" -ForegroundColor Green
@@ -11,3 +11,4 @@ Start-Sleep -Seconds 2
 Write-Host "2. Launching React + Vite Frontend on http://127.0.0.1:5173..." -ForegroundColor Yellow
 Set-Location frontend
 npm run dev
+

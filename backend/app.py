@@ -8,7 +8,8 @@ load_dotenv()
 
 from backend.models import (
     OptimizationRequest, OptimizationResult, ChatRequest, ChatResponse,
-    SimulationScenarioRequest, VehicleStatus, VehicleType, RoadStatus
+    SimulationScenarioRequest, VehicleStatus, VehicleType, RoadStatus,
+    ExamCrisisResponse, ExamCrisisMetrics
 )
 from backend.simulator import network_state
 from backend.solver import solve_dynamic_rescue
@@ -89,6 +90,97 @@ def trigger_optimization(req: Optional[OptimizationRequest] = None):
     last_optimization_result = result
     return result
 
+def build_exam_crisis_response() -> ExamCrisisResponse:
+    global last_optimization_result
+    if not last_optimization_result:
+        last_optimization_result = solve_dynamic_rescue(
+            locations=network_state.locations,
+            roads=network_state.roads,
+            students=network_state.students,
+            vehicles=network_state.vehicles,
+            disruptions=network_state.disruptions,
+            reoptimize_all=False,
+            priority_mode="exam_priority"
+        )
+    
+    is_active = (network_state.scenario_name == "EXAM-DAY EMERGENCY CRISIS")
+    failed_vehs = [v for v in network_state.vehicles if v.status == VehicleStatus.BREAKDOWN]
+    usable_vehs = [v for v in network_state.vehicles if v.status != VehicleStatus.BREAKDOWN]
+    flooded_r = next((r for r in network_state.roads if r.status == RoadStatus.CLOSED), None)
+
+    p1_c = sum(1 for s in network_state.students if getattr(s, 'exam_priority', 'P3') == 'P1')
+    p2_c = sum(1 for s in network_state.students if getattr(s, 'exam_priority', 'P3') == 'P2')
+    p3_c = sum(1 for s in network_state.students if getattr(s, 'exam_priority', 'P3') == 'P3')
+
+    exam_stus = p1_c + p2_c
+    at_risk_c = sum(1 for s in network_state.students if s.is_at_risk)
+    on_time_c = last_optimization_result.optimization_metrics.exam_on_time_count if (last_optimization_result and last_optimization_result.optimization_metrics) else 0
+
+    metrics = ExamCrisisMetrics(
+        crisis_active=is_active,
+        status_text="EXAM-DAY EMERGENCY ACTIVE" if is_active else "STANDBY / NORMAL OPERATIONS",
+        failed_buses_count=len(failed_vehs),
+        failed_bus_names=[v.name for v in failed_vehs],
+        demand_surge_pct=40 if is_active else 0,
+        flooded_road_id=flooded_r.id if flooded_r else "None",
+        flooded_road_name=flooded_r.name if flooded_r else "All roads open",
+        total_students_requiring_transport=len(network_state.students),
+        students_with_exams=exam_stus,
+        p1_count=p1_c,
+        p2_count=p2_c,
+        p3_count=p3_c,
+        available_vehicles_count=len(usable_vehs),
+        remaining_seating_capacity=sum(v.capacity for v in usable_vehs),
+        students_assigned=last_optimization_result.transported_students if last_optimization_result else 0,
+        students_on_time=on_time_c,
+        students_at_risk=at_risk_c,
+        students_unassigned=last_optimization_result.stranded_students if last_optimization_result else 0,
+        coverage_percentage=last_optimization_result.coverage_percentage if last_optimization_result else 100.0,
+        before_transported=210,
+        after_transported=last_optimization_result.transported_students if last_optimization_result else 210,
+        before_capacity=337,
+        after_capacity=sum(v.capacity for v in usable_vehs),
+        before_coverage_pct=100.0,
+        after_coverage_pct=last_optimization_result.coverage_percentage if last_optimization_result else 100.0,
+        before_travel_time_mins=285.0,
+        after_travel_time_mins=last_optimization_result.total_travel_time_mins if last_optimization_result else 285.0
+    )
+
+    report = assistant_service.generate_exam_crisis_report(last_optimization_result)
+
+    return ExamCrisisResponse(
+        active=is_active,
+        scenario_name=network_state.scenario_name,
+        metrics=metrics,
+        optimization=last_optimization_result,
+        disruptions=network_state.disruptions,
+        gemini_report=report,
+        timestamp="07:55 AM"
+    )
+
+@app.get("/api/crisis/exam-day", response_model=ExamCrisisResponse)
+def get_exam_crisis_status():
+    return build_exam_crisis_response()
+
+@app.post("/api/crisis/exam-day", response_model=ExamCrisisResponse)
+def trigger_exam_crisis_endpoint():
+    global last_optimization_result
+    network_state.apply_exam_day_crisis(
+        failed_bus_ids=["BUS-101", "BUS-103"],
+        flooded_road_id="R6",
+        surge_percentage=40
+    )
+    last_optimization_result = solve_dynamic_rescue(
+        locations=network_state.locations,
+        roads=network_state.roads,
+        students=network_state.students,
+        vehicles=network_state.vehicles,
+        disruptions=network_state.disruptions,
+        reoptimize_all=False,
+        priority_mode="exam_priority"
+    )
+    return build_exam_crisis_response()
+
 @app.post("/api/simulate")
 def trigger_simulation(req: SimulationScenarioRequest):
     global last_optimization_result
@@ -107,6 +199,12 @@ def trigger_simulation(req: SimulationScenarioRequest):
     elif req.scenario_type == "delay":
         road_id = req.road_id or "R12"
         disruption = network_state.apply_unexpected_delay(road_id)
+    elif req.scenario_type == "exam_crisis":
+        network_state.apply_exam_day_crisis(
+            failed_bus_ids=["BUS-101", "BUS-103"],
+            flooded_road_id="R6",
+            surge_percentage=40
+        )
     elif req.scenario_type == "reset":
         network_state.reset_to_baseline()
     else:
@@ -119,7 +217,8 @@ def trigger_simulation(req: SimulationScenarioRequest):
         students=network_state.students,
         vehicles=network_state.vehicles,
         disruptions=network_state.disruptions,
-        reoptimize_all=False
+        reoptimize_all=False,
+        priority_mode="exam_priority"
     )
 
     return {

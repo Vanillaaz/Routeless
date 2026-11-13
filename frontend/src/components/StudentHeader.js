@@ -1,5 +1,5 @@
 import { jsx as _jsx, jsxs as _jsxs } from "react/jsx-runtime";
-import { Bus, Navigation, MapPin, Sparkles, Clock } from 'lucide-react';
+import { Bus, Navigation, MapPin, Sparkles, Clock, ShieldAlert } from 'lucide-react';
 export const StudentHeader = ({ activeTab, setActiveTab, activeBusesCount }) => {
     const tabs = [
         { id: 'tracker', label: 'Live Bus Tracker', icon: Bus },
@@ -13,11 +13,17 @@ export const StudentHeader = ({ activeTab, setActiveTab, activeBusesCount }) => 
                                 return (_jsxs("button", { onClick: () => setActiveTab(tab.id), className: `flex items-center gap-2 px-3.5 py-2 rounded-lg text-xs font-bold transition ${isActive
                                         ? 'bg-white text-emerald-700 shadow-sm border border-slate-200/80'
                                         : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'}`, children: [_jsx(Icon, { className: `w-4 h-4 ${isActive ? 'text-emerald-600' : 'text-slate-500'}` }), _jsx("span", { children: tab.label }), tab.badge && (_jsx("span", { className: "text-[9px] px-1.5 py-0.2 rounded font-extrabold bg-emerald-100 text-emerald-800", children: tab.badge }))] }, tab.id));
-                            }) }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("div", { className: "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold", children: [_jsx("span", { className: "w-2 h-2 rounded-full bg-emerald-500 animate-ping" }), _jsxs("span", { children: [activeBusesCount, " Buses Running Live"] })] }), _jsxs("div", { className: "hidden lg:flex items-center gap-1.5 text-xs text-slate-500 font-medium", children: [_jsx(Clock, { className: "w-3.5 h-3.5 text-slate-400" }), _jsx("span", { children: "Morning Window: 07:15 - 09:00 AM" })] })] })] }), _jsx("div", { className: "flex md:hidden border-t border-slate-100 py-2 overflow-x-auto gap-2", children: tabs.map((tab) => {
-                        const Icon = tab.icon;
-                        const isActive = activeTab === tab.id;
-                        return (_jsxs("button", { onClick: () => setActiveTab(tab.id), className: `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${isActive
-                                ? 'bg-emerald-600 text-white shadow-sm'
-                                : 'bg-slate-100 text-slate-600'}`, children: [_jsx(Icon, { className: "w-3.5 h-3.5" }), _jsx("span", { children: tab.label })] }, tab.id));
-                    }) })] }) }));
+                            }) }), _jsxs("div", { className: "flex items-center gap-3", children: [_jsxs("button", { onClick: () => setActiveTab('exam_crisis'), className: `relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm ${activeTab === 'exam_crisis'
+                                        ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-rose-500/30 ring-2 ring-rose-400 ring-offset-1'
+                                        : 'bg-gradient-to-r from-rose-50 to-red-100/90 text-rose-700 hover:from-rose-100 hover:to-red-200 border border-rose-300 hover:shadow-md'}`, title: "Launch Exam-Day Emergency Crisis Command Center", children: [_jsxs("span", { className: "relative flex h-2.5 w-2.5", children: [_jsx("span", { className: "animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-80" }), _jsx("span", { className: "relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600" })] }), _jsx(ShieldAlert, { className: `w-4 h-4 ${activeTab === 'exam_crisis' ? 'text-white' : 'text-rose-600'}` }), _jsx("span", { className: "tracking-wide", children: "EXAM CRISIS MODE" }), _jsx("span", { className: `text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase ${activeTab === 'exam_crisis'
+                                                ? 'bg-rose-800 text-rose-100'
+                                                : 'bg-rose-200 text-rose-900 border border-rose-300'}`, children: "LIVE" })] }), _jsxs("div", { className: "hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold", children: [_jsx("span", { className: "w-2 h-2 rounded-full bg-emerald-500 animate-ping" }), _jsxs("span", { children: [activeBusesCount, " Buses Running Live"] })] }), _jsxs("div", { className: "hidden lg:flex items-center gap-1.5 text-xs text-slate-500 font-medium", children: [_jsx(Clock, { className: "w-3.5 h-3.5 text-slate-400" }), _jsx("span", { children: "Morning Window: 07:15 - 09:00 AM" })] })] })] }), _jsxs("div", { className: "flex md:hidden border-t border-slate-100 py-2 overflow-x-auto gap-2", children: [_jsxs("button", { onClick: () => setActiveTab('exam_crisis'), className: `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black whitespace-nowrap border ${activeTab === 'exam_crisis'
+                                ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                                : 'bg-rose-50 text-rose-700 border-rose-300'}`, children: [_jsxs("span", { className: "relative flex h-2 w-2", children: [_jsx("span", { className: "animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75" }), _jsx("span", { className: "relative inline-flex rounded-full h-2 w-2 bg-rose-600" })] }), _jsx(ShieldAlert, { className: "w-3.5 h-3.5" }), _jsx("span", { children: "EXAM CRISIS" })] }), tabs.map((tab) => {
+                            const Icon = tab.icon;
+                            const isActive = activeTab === tab.id;
+                            return (_jsxs("button", { onClick: () => setActiveTab(tab.id), className: `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap ${isActive
+                                    ? 'bg-emerald-600 text-white shadow-sm'
+                                    : 'bg-slate-100 text-slate-600'}`, children: [_jsx(Icon, { className: "w-3.5 h-3.5" }), _jsx("span", { children: tab.label })] }, tab.id));
+                        })] })] }) }));
 };

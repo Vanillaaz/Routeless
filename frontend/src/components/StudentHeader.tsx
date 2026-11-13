@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bus, Navigation, MapPin, Sparkles, Clock, Phone } from 'lucide-react';
+import { Bus, Navigation, MapPin, Sparkles, Clock, Phone, ShieldAlert } from 'lucide-react';
 
 interface StudentHeaderProps {
   activeTab: string;
@@ -68,8 +68,35 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
             })}
           </nav>
 
-          {/* Right status */}
+          {/* Right status & Crisis Mode Trigger */}
           <div className="flex items-center gap-3">
+            {/* Prominent EXAM-DAY CRISIS MODE Button */}
+            <button
+              onClick={() => setActiveTab('exam_crisis')}
+              className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all shadow-sm ${
+                activeTab === 'exam_crisis'
+                  ? 'bg-gradient-to-r from-rose-600 to-red-600 text-white shadow-rose-500/30 ring-2 ring-rose-400 ring-offset-1'
+                  : 'bg-gradient-to-r from-rose-50 to-red-100/90 text-rose-700 hover:from-rose-100 hover:to-red-200 border border-rose-300 hover:shadow-md'
+              }`}
+              title="Launch Exam-Day Emergency Crisis Command Center"
+            >
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-80"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+              </span>
+              <ShieldAlert className={`w-4 h-4 ${activeTab === 'exam_crisis' ? 'text-white' : 'text-rose-600'}`} />
+              <span className="tracking-wide">EXAM CRISIS MODE</span>
+              <span
+                className={`text-[9px] px-1.5 py-0.5 rounded font-black tracking-wider uppercase ${
+                  activeTab === 'exam_crisis'
+                    ? 'bg-rose-800 text-rose-100'
+                    : 'bg-rose-200 text-rose-900 border border-rose-300'
+                }`}
+              >
+                LIVE
+              </span>
+            </button>
+
             <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-semibold">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
               <span>{activeBusesCount} Buses Running Live</span>
@@ -84,6 +111,21 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
 
         {/* Mobile tabs row */}
         <div className="flex md:hidden border-t border-slate-100 py-2 overflow-x-auto gap-2">
+          <button
+            onClick={() => setActiveTab('exam_crisis')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black whitespace-nowrap border ${
+              activeTab === 'exam_crisis'
+                ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+                : 'bg-rose-50 text-rose-700 border-rose-300'
+            }`}
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span>
+            </span>
+            <ShieldAlert className="w-3.5 h-3.5" />
+            <span>EXAM CRISIS</span>
+          </button>
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -107,3 +149,4 @@ export const StudentHeader: React.FC<StudentHeaderProps> = ({
     </header>
   );
 };
+

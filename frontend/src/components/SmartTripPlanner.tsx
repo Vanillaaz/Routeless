@@ -245,3 +245,4 @@ export const SmartTripPlanner: React.FC<TripPlannerProps> = ({
     </div>
   );
 };
+

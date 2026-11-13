@@ -316,6 +316,68 @@ def test_case_5_insufficient_capacity():
     print(">>> Test Case 5 PASSED successfully!\n")
 
 
+def test_case_6_exam_day_crisis():
+    separator("Test Case 6: Master Surprise Challenge — Exam-Day Emergency Crisis")
+    from backend.simulator import TransportationNetworkState
+
+    state = TransportationNetworkState()
+    disruptions = state.apply_exam_day_crisis(
+        failed_bus_ids=["BUS-101", "BUS-103"],
+        flooded_road_id="R6",
+        surge_percentage=40
+    )
+
+    print(f"Triggered: 2 Broken Buses (BUS-101, BUS-103), Flooded Road (R6), +40% Surge ({len(state.students)} total students)")
+    
+    # 1. Verify 2 buses are marked breakdown
+    broken = [v.id for v in state.vehicles if v.status == VehicleStatus.BREAKDOWN]
+    assert set(broken) == {"BUS-101", "BUS-103"}, f"Expected BUS-101 and BUS-103 broken, got {broken}"
+
+    # 2. Verify demand surge is exactly +40% (210 -> 291)
+    assert len(state.students) == 291, f"Expected 291 students, got {len(state.students)}"
+
+    # 3. Verify flooded road is marked closed
+    r6 = next(r for r in state.roads if r.id == "R6")
+    assert r6.status == RoadStatus.CLOSED, "Road R6 must be marked CLOSED due to flood"
+
+    # 4. Verify exam candidates exist
+    p1_students = [s for s in state.students if getattr(s, 'exam_priority', 'P3') == 'P1']
+    p2_students = [s for s in state.students if getattr(s, 'exam_priority', 'P3') == 'P2']
+    assert len(p1_students) > 0, "Must have P1 exam candidates"
+    assert len(p2_students) > 0, "Must have P2 exam candidates"
+    print(f"Exam Candidates: P1 (<60m) = {len(p1_students)}, P2 (<120m) = {len(p2_students)}")
+
+    # 5. Run OR-Tools Optimization with exam priority
+    res = solve_dynamic_rescue(
+        locations=state.locations,
+        roads=state.roads,
+        students=state.students,
+        vehicles=state.vehicles,
+        disruptions=state.disruptions,
+        reoptimize_all=False,
+        priority_mode="exam_priority"
+    )
+    print_audit(res)
+
+    # 6. Check constraint audit
+    assert res.constraint_audit.audit_passed, "Audit must pass"
+    assert res.constraint_audit.capacity_violations == 0, "No capacity violations allowed"
+    assert res.constraint_audit.unavailable_vehicle_assignments == 0, "Failed buses must not be assigned"
+    assert res.constraint_audit.closed_road_traversals == 0, "Flooded road must never be traversed"
+
+    # 7. Verify no student assigned to BUS-101 or BUS-103
+    for a in res.assignments:
+        assert a.vehicle_id not in ("BUS-101", "BUS-103"), f"Failed bus {a.vehicle_id} had assignments!"
+        assert a.assigned_count <= a.capacity, f"Vehicle {a.vehicle_id} exceeded capacity!"
+
+    # 8. Check that unserved students are truthfully recorded
+    print(f"\n[Verification] Transported: {res.transported_students}/{res.total_students} ({res.coverage_percentage:.1f}% coverage)")
+    print(f"Unassigned students diagnosed honestly: {res.stranded_students} students (Physical capacity saturated)")
+    assert len(res.unassigned_students_details) == res.stranded_students
+    
+    print(">>> Test Case 6 PASSED successfully!\n")
+
+
 if __name__ == "__main__":
     print("\n" + "#" * 80)
     print(" GRAMMOVE AI — OPERATIONS RESEARCH DYNAMIC RESCUE ENGINE TEST SUITE")
@@ -328,8 +390,9 @@ if __name__ == "__main__":
         test_case_3_road_closure()
         test_case_4_increased_demand()
         test_case_5_insufficient_capacity()
+        test_case_6_exam_day_crisis()
 
-        separator("ALL 5 OPERATIONS RESEARCH TEST CASES PASSED WITH 100% MATHEMATICAL INTEGRITY!")
+        separator("ALL 6 OPERATIONS RESEARCH TEST CASES PASSED WITH 100% MATHEMATICAL INTEGRITY!")
         sys.exit(0)
     except AssertionError as err:
         print(f"\n[X] TEST FAILURE: {err}")

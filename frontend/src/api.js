@@ -6,6 +6,34 @@ export async function fetchNetworkState() {
     }
     return res.json();
 }
+export async function fetchExamCrisisState() {
+    const res = await fetch(`${API_BASE}/crisis/exam-day`);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch exam crisis state: ${res.statusText}`);
+    }
+    return res.json();
+}
+export async function triggerExamCrisis() {
+    const res = await fetch(`${API_BASE}/crisis/exam-day`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to trigger exam crisis: ${res.statusText}`);
+    }
+    return res.json();
+}
+export async function resetCrisisToNormal() {
+    const res = await fetch(`${API_BASE}/simulate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scenario_type: 'reset' })
+    });
+    if (!res.ok) {
+        throw new Error(`Failed to reset scenario: ${res.statusText}`);
+    }
+    return res.json();
+}
 export async function trackBusByNumber(busQuery) {
     const res = await fetch(`${API_BASE}/track/${encodeURIComponent(busQuery)}`);
     if (!res.ok) {

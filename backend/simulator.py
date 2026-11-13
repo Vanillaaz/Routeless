@@ -101,18 +101,40 @@ class TransportationNetworkState:
 
             for i in range(add_count):
                 total_added += 1
+                # 60% of surge students have examinations
+                r_exam = (i % 5)
+                if r_exam in (0, 1):
+                    ex_prio = "P1"
+                    ex_time = "08:45 AM"
+                    deadl = "08:45 AM"
+                    buf = 15
+                elif r_exam in (2, 3):
+                    ex_prio = "P2"
+                    ex_time = "09:30 AM"
+                    deadl = "09:30 AM"
+                    buf = 15
+                else:
+                    ex_prio = "P3"
+                    ex_time = None
+                    deadl = "09:00 AM"
+                    buf = 0
+
                 stu = Student(
                     id=f"STU-SRG-{start_idx + total_added:04d}",
-                    name=f"Extra Student {total_added} ({vill.name})",
+                    name=f"Exam Candidate {total_added} ({vill.name})",
                     origin_id=vill.id,
                     origin_name=vill.name,
                     destination_id="C1" if i % 2 == 0 else "C3",
                     destination_name="Ramanagara Govt Polytechnic" if i % 2 == 0 else "Bidadi Tech Academy",
-                    deadline="08:45 AM",
+                    deadline=deadl,
                     pickup_time="07:35 AM",
                     status=StudentStatus.STRANDED,  # Unassigned surplus
                     assigned_vehicle_id=None,
-                    is_at_risk=True
+                    is_at_risk=True,
+                    exam_time=ex_time,
+                    exam_priority=ex_prio,
+                    arrival_buffer_mins=buf,
+                    latest_feasible_departure="08:00 AM" if ex_time else "08:15 AM"
                 )
                 new_students.append(stu)
 
@@ -182,6 +204,75 @@ class TransportationNetworkState:
         self.disruptions.append(disruption)
         self.scenario_name = f"Severe Route Delay ({road.name})"
         return disruption
+
+    def apply_exam_day_crisis(self, failed_bus_ids: List[str] = None, flooded_road_id: str = "R6", surge_percentage: int = 40) -> List[Disruption]:
+        """
+        Executes the surprise Exam-Day Crisis scenario:
+        1. Two government buses fail mechanically (BUS-101 and BUS-103).
+        2. Student demand surges by 40% across rural feeder villages.
+        3. A key rural road connecting villages floods and becomes impassable (R6 Kailancha Bridge).
+        4. Examination deadlines are activated, placing P1 (<60m) and P2 (<120m) students at highest priority.
+        """
+        if failed_bus_ids is None:
+            failed_bus_ids = ["BUS-101", "BUS-103"]
+
+        self.reset_to_baseline()
+
+        # Step 1: Mark 2 failed buses
+        stranded_from_buses = 0
+        failed_names = []
+        for v in self.vehicles:
+            if v.id in failed_bus_ids:
+                v.status = VehicleStatus.BREAKDOWN
+                v.current_occupancy = 0
+                failed_names.append(v.name)
+        
+        for s in self.students:
+            if s.assigned_vehicle_id in failed_bus_ids:
+                s.status = StudentStatus.STRANDED
+                s.assigned_vehicle_id = None
+                s.is_at_risk = True
+                stranded_from_buses += 1
+
+        # Step 2: Demand surge (+40%)
+        surge_disruption = self.apply_demand_surge(surge_percentage)
+
+        # Step 3: Road flooding
+        flooded_road = next((r for r in self.roads if r.id == flooded_road_id), self.roads[5])
+        flooded_road.status = RoadStatus.CLOSED
+        flooded_road.name = f"{flooded_road.name} [FLOODED]"
+
+        # Step 4: Mark students affected by road closure
+        for s in self.students:
+            if s.origin_id in (flooded_road.from_node, flooded_road.to_node):
+                s.status = StudentStatus.STRANDED
+                s.is_at_risk = True
+
+        disruption_brk = Disruption(
+            id="DIS-EXAM-BRK-2",
+            type="bus_breakdown",
+            title="Twin Fleet Breakdown: 2 Government Buses Down",
+            description=f"Core transit buses {', '.join(failed_names)} suffered sudden mechanical failure. {stranded_from_buses} students stranded.",
+            affected_vehicle_ids=failed_bus_ids,
+            affected_student_count=stranded_from_buses,
+            timestamp="07:40 AM",
+            active=True
+        )
+
+        disruption_flood = Disruption(
+            id=f"DIS-FLOOD-{flooded_road.id}",
+            type="flooded_road",
+            title=f"Flash Flood: {flooded_road.name}",
+            description=f"Torrential rural monsoon runoff submerged culvert bridge on {flooded_road.name}. Road completely closed. Zero crossings permitted.",
+            affected_road_ids=[flooded_road.id],
+            affected_student_count=len([s for s in self.students if s.origin_id in (flooded_road.from_node, flooded_road.to_node)]),
+            timestamp="07:35 AM",
+            active=True
+        )
+
+        self.disruptions = [disruption_brk, disruption_flood, surge_disruption]
+        self.scenario_name = "EXAM-DAY EMERGENCY CRISIS"
+        return self.disruptions
 
 
 # Global singleton instance

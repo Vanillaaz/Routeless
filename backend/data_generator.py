@@ -163,8 +163,8 @@ DEFAULT_VEHICLES: List[Vehicle] = [
         id="MINI-203",
         name="Shree Basaveshwara MaxiCab KA-42-M-7701",
         type=VehicleType.MINIBUS,
-        capacity=36,
-        current_occupancy=36,
+        capacity=40,
+        current_occupancy=40,
         current_location_id="V3",
         current_location_name="Harohalli",
         destination_id="C4",
@@ -333,6 +333,27 @@ def generate_students() -> List[Student]:
             pickup_mins = random.choice([0, 15, 30])
             pickup_time = f"07:{pickup_mins:02d} AM"
             deadline = "08:45 AM" if random.random() > 0.3 else "09:00 AM"
+
+            # Examination schedule & priority classification:
+            # P1: Exam within 60 mins (08:30 AM - 08:45 AM)
+            # P2: Exam within 120 mins (09:15 AM - 09:30 AM)
+            # P3: Regular college classes
+            r_exam = random.random()
+            if r_exam < 0.28:
+                exam_priority = "P1"
+                exam_time = random.choice(["08:30 AM", "08:45 AM"])
+                deadline = exam_time  # Must reach by exam time
+                buffer_mins = 15
+            elif r_exam < 0.65:
+                exam_priority = "P2"
+                exam_time = random.choice(["09:15 AM", "09:30 AM"])
+                deadline = exam_time
+                buffer_mins = 15
+            else:
+                exam_priority = "P3"
+                exam_time = None
+                deadline = "09:00 AM"
+                buffer_mins = 0
             
             # Baseline vehicle assignment respecting capacity and corridor compatibility
             assigned_veh_id = None
@@ -361,6 +382,14 @@ def generate_students() -> List[Student]:
 
             veh_occupancy[assigned_veh_id] += 1
                 
+            # Calculate latest feasible departure time:
+            # Latest departure = Exam start time - arrival buffer - estimated direct transit time (~20 mins)
+            latest_dep = None
+            if exam_time:
+                from backend.solver import time_str_to_mins, mins_to_time_str
+                exam_m = time_str_to_mins(exam_time)
+                latest_dep = mins_to_time_str(exam_m - buffer_mins - 20.0)
+
             student = Student(
                 id=f"STU-{student_counter:04d}",
                 name=name,
@@ -372,7 +401,11 @@ def generate_students() -> List[Student]:
                 pickup_time=pickup_time,
                 status=StudentStatus.ASSIGNED,
                 assigned_vehicle_id=assigned_veh_id,
-                is_at_risk=False
+                is_at_risk=False,
+                exam_time=exam_time,
+                exam_priority=exam_priority,
+                arrival_buffer_mins=buffer_mins,
+                latest_feasible_departure=latest_dep
             )
             students.append(student)
             student_counter += 1

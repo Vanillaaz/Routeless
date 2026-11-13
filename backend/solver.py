@@ -295,10 +295,22 @@ def solve_subroute_sequencing(
         time_diff = int(deadline_mins - dropoff_arr_mins)
         status_punctuality = f"{abs(time_diff)}m before deadline" if time_diff >= 0 else f"{abs(time_diff)}m AFTER deadline"
 
+        # Check exam punctuality
+        is_exam_on_time = True
+        if s.exam_time:
+            exam_start_m = time_str_to_mins(s.exam_time)
+            if dropoff_arr_mins > exam_start_m:
+                is_exam_on_time = False
+                s.is_at_risk = True
+            exam_diff = int(exam_start_m - dropoff_arr_mins)
+            exam_tag = f" | EXAM {s.exam_time} ({exam_diff}m before start)" if exam_diff >= 0 else f" | MISSED EXAM ({abs(exam_diff)}m late)"
+        else:
+            exam_tag = ""
+
         reason = (
             f"Assigned to {vehicle.name} ({vehicle.type.value}, Cap: {vehicle.capacity}). "
             f"Pick up at {s.origin_name} ({pickup_dep_str}), arriving at {s.destination_name} at {dropoff_arr_str} "
-            f"({status_punctuality}). Detour: {detour_mins:.1f} mins."
+            f"({status_punctuality}{exam_tag}). Detour: {detour_mins:.1f} mins."
         )
 
         student_details.append(StudentAssignmentDetail(
@@ -314,7 +326,10 @@ def solve_subroute_sequencing(
             is_on_time=is_on_time,
             travel_time_mins=round(stu_travel_time, 1),
             detour_mins=round(detour_mins, 1),
-            assignment_reason=reason
+            assignment_reason=reason,
+            exam_time=s.exam_time,
+            exam_priority=s.exam_priority,
+            is_exam_on_time=is_exam_on_time
         ))
 
     coords = graph.get_path_coordinates(full_path_node_ids)
@@ -573,12 +588,12 @@ def solve_dynamic_rescue(
             solver.Add(solver.Sum(all_college_vars) <= 2 * y[v.id])
 
         # Objective Function:
-        # 1. Maximize transported students (+2000 per student)
-        # 2. Prioritize stranded students (+1000 extra)
-        # 3. Minimize student travel time (-0.5 per minute)
-        # 4. Minimize detour distance (-1.0 per km)
-        # 5. Minimize deadline tardiness (-50.0 per late minute)
-        # 6. Minimize vehicle dispatch fixed overhead (-15.0 per deployed vehicle to improve utilization)
+        # Multi-Objective Lexicographic / Tiered Hierarchy:
+        # 1. Maximize examination students reaching institutions before deadlines (P1: +15000, P2: +8000)
+        # 2. Maximize total students transported (+2000 base, +1000 stranded rescue)
+        # 3. Minimize students missing examination deadlines (-250/min if exam student late, -50/min normal)
+        # 4. Minimize student travel time (-0.5/min) and detour (-1.0/km)
+        # 5. Maximize vehicle capacity utilization (-15.0 per deployed vehicle to consolidate loads)
         objective = solver.Objective()
 
         for (s_id, v_id), var in x.items():
@@ -590,13 +605,25 @@ def solve_dynamic_rescue(
             detour_km = info["detour_km"]
             late_mins = info["lateness_mins"]
 
-            coef = 2000.0
+            # Lexicographic priority weighting for examination deadlines
+            if stu.exam_priority == "P1":
+                coef = 15000.0  # Examination within 60 mins: absolute priority
+            elif stu.exam_priority == "P2":
+                coef = 8000.0   # Examination within 120 mins
+            else:
+                coef = 2000.0   # Standard student commuter
+
             if is_stranded:
                 coef += 1000.0
             
             coef -= (0.5 * t_time)
             coef -= (1.0 * detour_km)
-            coef -= (50.0 * late_mins)
+
+            # Severe late penalty if student has an active exam
+            if stu.exam_time and late_mins > 0:
+                coef -= (250.0 * late_mins)
+            else:
+                coef -= (50.0 * late_mins)
 
             objective.SetCoefficient(var, coef)
 
@@ -741,7 +768,10 @@ def solve_dynamic_rescue(
                 destination_name=s.destination_name,
                 deadline=s.deadline,
                 diagnostic_reason=diag_reason,
-                explanation=expl
+                explanation=expl,
+                exam_time=s.exam_time,
+                exam_priority=s.exam_priority,
+                is_at_risk=True
             ))
 
     # 7. Constraint Audit Report
@@ -792,6 +822,10 @@ def solve_dynamic_rescue(
     on_time_count = sum(1 for det in all_assigned_details if det.is_on_time)
     on_time_pct = round((on_time_count / max(1, len(all_assigned_details))) * 100.0, 1) if all_assigned_details else 100.0
 
+    exam_stus_count = sum(1 for s in students if s.exam_priority in ("P1", "P2"))
+    exam_on_time_cnt = sum(1 for det in all_assigned_details if det.exam_priority in ("P1", "P2") and det.is_exam_on_time)
+    at_risk_cnt = sum(1 for s in students if s.is_at_risk or (s.id in unserved_student_ids and s.exam_priority in ("P1", "P2")))
+
     solver_status_str = "OPTIMAL" if solver_status == pywraplp.Solver.OPTIMAL else ("FEASIBLE" if solver_status == pywraplp.Solver.FEASIBLE else "INFEASIBLE")
 
     metrics = OptimizationMetrics(
@@ -806,7 +840,10 @@ def solve_dynamic_rescue(
         fleet_utilization_percentage=fleet_util_pct,
         total_travel_time_mins=round(total_network_travel_time, 1),
         total_detour_km=round(total_network_detour_km, 2),
-        on_time_percentage=on_time_pct
+        on_time_percentage=on_time_pct,
+        exam_students_count=exam_stus_count,
+        exam_on_time_count=exam_on_time_cnt,
+        students_at_risk_count=at_risk_cnt
     )
 
     constraint_audit = ConstraintAudit(

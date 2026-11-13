@@ -68,6 +68,11 @@ class Student(BaseModel):
     status: StudentStatus = StudentStatus.ASSIGNED
     assigned_vehicle_id: Optional[str] = None
     is_at_risk: bool = False
+    # Exam-Day crisis attributes
+    exam_time: Optional[str] = None  # e.g. "09:00 AM"
+    exam_priority: str = "P3"         # "P1" (<60m), "P2" (<120m), "P3" (regular)
+    arrival_buffer_mins: int = 15     # required arrival cushion before exam
+    latest_feasible_departure: Optional[str] = None
 
 class Vehicle(BaseModel):
     id: str
@@ -87,7 +92,7 @@ class Vehicle(BaseModel):
 
 class Disruption(BaseModel):
     id: str
-    type: str  # "bus_breakdown", "road_closure", "demand_surge", "multi_breakdown", "delay"
+    type: str  # "bus_breakdown", "road_closure", "demand_surge", "multi_breakdown", "delay", "flooded_road"
     title: str
     description: str
     affected_vehicle_ids: List[str] = Field(default_factory=list)
@@ -121,6 +126,9 @@ class StudentAssignmentDetail(BaseModel):
     travel_time_mins: float
     detour_mins: float
     assignment_reason: str
+    exam_time: Optional[str] = None
+    exam_priority: str = "P3"
+    is_exam_on_time: bool = True
 
 class UnassignedStudentDetail(BaseModel):
     student_id: str
@@ -130,6 +138,9 @@ class UnassignedStudentDetail(BaseModel):
     deadline: str
     diagnostic_reason: str  # "CAPACITY_EXHAUSTED", "ROAD_IMPASSABLE", "DEADLINE_VIOLATION", "INCOMPATIBLE_CORRIDOR"
     explanation: str
+    exam_time: Optional[str] = None
+    exam_priority: str = "P3"
+    is_at_risk: bool = True
 
 class ConstraintAudit(BaseModel):
     capacity_violations: int = 0
@@ -153,6 +164,9 @@ class OptimizationMetrics(BaseModel):
     total_travel_time_mins: float
     total_detour_km: float
     on_time_percentage: float
+    exam_students_count: int = 0
+    exam_on_time_count: int = 0
+    students_at_risk_count: int = 0
 
 class VehicleAssignment(BaseModel):
     vehicle_id: str
@@ -180,7 +194,7 @@ class OptimizationRequest(BaseModel):
     disruption_id: Optional[str] = None
     force_reroute: bool = False
     allow_shared_autos: bool = True
-    priority_mode: str = "max_students"
+    priority_mode: str = "exam_priority"  # "max_students" or "exam_priority"
 
 class OptimizationResult(BaseModel):
     status: str
@@ -201,6 +215,45 @@ class OptimizationResult(BaseModel):
     rescue_narrative: str
     active_disruptions: List[Disruption] = Field(default_factory=list)
 
+class ExamCrisisMetrics(BaseModel):
+    crisis_active: bool
+    status_text: str
+    failed_buses_count: int
+    failed_bus_names: List[str]
+    demand_surge_pct: int
+    flooded_road_id: str
+    flooded_road_name: str
+    total_students_requiring_transport: int
+    students_with_exams: int
+    p1_count: int
+    p2_count: int
+    p3_count: int
+    available_vehicles_count: int
+    remaining_seating_capacity: int
+    students_assigned: int
+    students_on_time: int
+    students_at_risk: int
+    students_unassigned: int
+    coverage_percentage: float
+    # Before vs After Analytics
+    before_transported: int
+    after_transported: int
+    before_capacity: int
+    after_capacity: int
+    before_coverage_pct: float
+    after_coverage_pct: float
+    before_travel_time_mins: float
+    after_travel_time_mins: float
+
+class ExamCrisisResponse(BaseModel):
+    active: bool
+    scenario_name: str
+    metrics: ExamCrisisMetrics
+    optimization: OptimizationResult
+    disruptions: List[Disruption]
+    gemini_report: str
+    timestamp: str = "07:55 AM"
+
 class ChatRequest(BaseModel):
     message: str
     student_id: Optional[str] = None
@@ -213,7 +266,7 @@ class ChatResponse(BaseModel):
     affected_student_context: Optional[Dict[str, Any]] = None
 
 class SimulationScenarioRequest(BaseModel):
-    scenario_type: str  # "breakdown", "road_closure", "surge", "multi_breakdown", "delay", "reset"
+    scenario_type: str  # "breakdown", "road_closure", "surge", "multi_breakdown", "delay", "reset", "exam_crisis"
     vehicle_id: Optional[str] = None
     road_id: Optional[str] = None
     surge_percentage: Optional[int] = 40

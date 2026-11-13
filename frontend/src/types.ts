@@ -70,6 +70,10 @@ export interface Student {
   status: StudentStatus;
   assigned_vehicle_id: string | null;
   is_at_risk: boolean;
+  exam_time?: string;
+  exam_priority?: string;
+  arrival_buffer_mins?: number;
+  latest_feasible_departure?: string;
 }
 
 export interface Vehicle {
@@ -127,6 +131,9 @@ export interface StudentAssignmentDetail {
   travel_time_mins: number;
   detour_mins: number;
   assignment_reason: string;
+  exam_time?: string | null;
+  exam_priority?: 'P1' | 'P2' | 'P3' | string;
+  is_exam_on_time?: boolean;
 }
 
 export interface UnassignedStudentDetail {
@@ -137,6 +144,9 @@ export interface UnassignedStudentDetail {
   deadline: string;
   diagnostic_reason: string;
   explanation: string;
+  exam_time?: string | null;
+  exam_priority?: 'P1' | 'P2' | 'P3' | string;
+  is_at_risk?: boolean;
 }
 
 export interface ConstraintAudit {
@@ -211,6 +221,46 @@ export interface NetworkStateResponse {
   students: Student[];
   disruptions: Disruption[];
   last_optimization: OptimizationResult | null;
+}
+
+export interface ExamCrisisMetrics {
+  crisis_active: boolean;
+  status_text: string;
+  failed_buses_count: number;
+  failed_bus_names: string[];
+  demand_surge_pct: number;
+  flooded_road_id: string;
+  flooded_road_name: string;
+  total_students_requiring_transport: number;
+  students_with_exams: number;
+  p1_count: number;
+  p2_count: number;
+  p3_count: number;
+  available_vehicles_count: number;
+  remaining_seating_capacity: number;
+  students_assigned: number;
+  students_on_time: number;
+  students_at_risk: number;
+  students_unassigned: number;
+  coverage_percentage: number;
+  before_transported: number;
+  after_transported: number;
+  before_capacity: number;
+  after_capacity: number;
+  before_coverage_pct: number;
+  after_coverage_pct: number;
+  before_travel_time_mins: number;
+  after_travel_time_mins: number;
+}
+
+export interface ExamCrisisResponse {
+  active: boolean;
+  scenario_name: string;
+  metrics: ExamCrisisMetrics;
+  optimization: OptimizationResult;
+  disruptions: Disruption[];
+  gemini_report: string;
+  timestamp: string;
 }
 
 export interface ChatMessage {
