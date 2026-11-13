@@ -31,6 +31,12 @@ class LocationType(str, Enum):
     COLLEGE = "college"
     JUNCTION = "junction"
 
+class WaypointAction(str, Enum):
+    START = "start"
+    PICKUP = "pickup"
+    DROPOFF = "dropoff"
+    PASS_THROUGH = "pass_through"
+
 class Location(BaseModel):
     id: str
     name: str
@@ -90,6 +96,64 @@ class Disruption(BaseModel):
     timestamp: str = "07:45 AM"
     active: bool = True
 
+class RouteWaypoint(BaseModel):
+    node_id: str
+    node_name: str
+    arrival_time: str
+    departure_time: str
+    action: WaypointAction
+    students_boarding: List[str] = Field(default_factory=list)
+    students_alighting: List[str] = Field(default_factory=list)
+    cumulative_distance_km: float = 0.0
+    cumulative_time_mins: float = 0.0
+
+class StudentAssignmentDetail(BaseModel):
+    student_id: str
+    student_name: str
+    origin_name: str
+    destination_name: str
+    assigned_vehicle_id: str
+    assigned_vehicle_name: str
+    pickup_time: str
+    eta: str
+    deadline: str
+    is_on_time: bool
+    travel_time_mins: float
+    detour_mins: float
+    assignment_reason: str
+
+class UnassignedStudentDetail(BaseModel):
+    student_id: str
+    student_name: str
+    origin_name: str
+    destination_name: str
+    deadline: str
+    diagnostic_reason: str  # "CAPACITY_EXHAUSTED", "ROAD_IMPASSABLE", "DEADLINE_VIOLATION", "INCOMPATIBLE_CORRIDOR"
+    explanation: str
+
+class ConstraintAudit(BaseModel):
+    capacity_violations: int = 0
+    unavailable_vehicle_assignments: int = 0
+    closed_road_traversals: int = 0
+    incompatible_destinations: int = 0
+    unassigned_students_count: int = 0
+    audit_passed: bool = True
+    audit_notes: List[str] = Field(default_factory=list)
+
+class OptimizationMetrics(BaseModel):
+    solver_name: str = "Google OR-Tools (CBC/SCIP MILP)"
+    solver_status: str
+    solve_time_ms: float
+    objective_value: float
+    total_students: int
+    transported_count: int
+    unassigned_count: int
+    coverage_percentage: float
+    fleet_utilization_percentage: float
+    total_travel_time_mins: float
+    total_detour_km: float
+    on_time_percentage: float
+
 class VehicleAssignment(BaseModel):
     vehicle_id: str
     vehicle_name: str
@@ -103,8 +167,16 @@ class VehicleAssignment(BaseModel):
     eta_minutes: float
     is_rescue_mission: bool = False
     route_path_coordinates: List[List[float]] = Field(default_factory=list)
+    ordered_waypoints: List[RouteWaypoint] = Field(default_factory=list)
+    detour_distance_km: float = 0.0
+    vehicle_utilization_percentage: float = 0.0
+    selection_reason: str = ""
 
 class OptimizationRequest(BaseModel):
+    students: Optional[List[Student]] = None
+    vehicles: Optional[List[Vehicle]] = None
+    roads: Optional[List[RoadSegment]] = None
+    disruptions: Optional[List[Disruption]] = None
     disruption_id: Optional[str] = None
     force_reroute: bool = False
     allow_shared_autos: bool = True
@@ -118,10 +190,16 @@ class OptimizationResult(BaseModel):
     stranded_students: int
     coverage_percentage: float
     vehicle_utilization_percentage: float
+    total_travel_time_mins: float = 0.0
+    total_detour_km: float = 0.0
     assignments: List[VehicleAssignment]
+    student_assignments: List[StudentAssignmentDetail] = Field(default_factory=list)
+    unassigned_students_details: List[UnassignedStudentDetail] = Field(default_factory=list)
     unserved_student_ids: List[str]
+    constraint_audit: Optional[ConstraintAudit] = None
+    optimization_metrics: Optional[OptimizationMetrics] = None
     rescue_narrative: str
-    active_disruptions: List[Disruption]
+    active_disruptions: List[Disruption] = Field(default_factory=list)
 
 class ChatRequest(BaseModel):
     message: str

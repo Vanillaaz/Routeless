@@ -163,13 +163,13 @@ DEFAULT_VEHICLES: List[Vehicle] = [
         id="MINI-203",
         name="Shree Basaveshwara MaxiCab KA-42-M-7701",
         type=VehicleType.MINIBUS,
-        capacity=20,
-        current_occupancy=18,
+        capacity=36,
+        current_occupancy=36,
         current_location_id="V3",
         current_location_name="Harohalli",
         destination_id="C4",
         status=VehicleStatus.EN_ROUTE,
-        route_stops=["V3", "C4"],
+        route_stops=["V3", "V8", "C4"],
         assigned_students=[],
         speed_kmh=44.0,
         driver_name="Mahadevaswamy",
@@ -305,6 +305,8 @@ def generate_students() -> List[Student]:
     }
     
     location_map = {loc.id: loc for loc in DEFAULT_LOCATIONS}
+    veh_caps = {v.id: v.capacity for v in DEFAULT_VEHICLES}
+    veh_occupancy: Dict[str, int] = {v.id: 0 for v in DEFAULT_VEHICLES}
     student_counter = 1
     
     for loc in DEFAULT_LOCATIONS:
@@ -332,20 +334,32 @@ def generate_students() -> List[Student]:
             pickup_time = f"07:{pickup_mins:02d} AM"
             deadline = "08:45 AM" if random.random() > 0.3 else "09:00 AM"
             
-            # Baseline vehicle assignment
+            # Baseline vehicle assignment respecting capacity and corridor compatibility
             assigned_veh_id = None
             if loc.id == "V2" and chosen_dest_id == "C3":
                 assigned_veh_id = "BUS-101"
+            elif loc.id == "V2" and chosen_dest_id == "C1":
+                assigned_veh_id = "AUTO-301" if veh_occupancy["AUTO-301"] < veh_caps["AUTO-301"] else "AUTO-302"
             elif loc.id == "V7" and chosen_dest_id == "C1":
                 assigned_veh_id = "BUS-102"
+            elif loc.id == "V7" and chosen_dest_id == "C3":
+                assigned_veh_id = "AUTO-305" if veh_occupancy["AUTO-305"] < veh_caps["AUTO-305"] else "MINI-201"
             elif loc.id in ("V1", "V5") and chosen_dest_id == "C2":
                 assigned_veh_id = "BUS-103"
-            elif loc.id == "V4" and chosen_dest_id == "C1":
+            elif loc.id in ("V1", "V5") and chosen_dest_id == "C1":
+                assigned_veh_id = "MINI-202"
+            elif loc.id in ("V4", "V6") and chosen_dest_id == "C1":
                 assigned_veh_id = "BUS-104"
-            elif loc.id == "V3" and chosen_dest_id == "C4":
-                assigned_veh_id = "MINI-203"
+            elif loc.id in ("V4", "V6") and chosen_dest_id == "C2":
+                assigned_veh_id = "AUTO-304" if veh_occupancy["AUTO-304"] < veh_caps["AUTO-304"] else ("AUTO-303" if veh_occupancy["AUTO-303"] < veh_caps["AUTO-303"] else "MINI-202")
+            elif loc.id in ("V3", "V8") and chosen_dest_id == "C4":
+                assigned_veh_id = "MINI-203" if veh_occupancy["MINI-203"] < veh_caps["MINI-203"] else "AUTO-306"
+            elif loc.id in ("V3", "V8") and chosen_dest_id in ("C1", "C3"):
+                assigned_veh_id = "MINI-201"
             else:
-                assigned_veh_id = "BUS-101" if random.random() > 0.5 else "BUS-104"
+                assigned_veh_id = "MINI-201"
+
+            veh_occupancy[assigned_veh_id] += 1
                 
             student = Student(
                 id=f"STU-{student_counter:04d}",
@@ -364,3 +378,4 @@ def generate_students() -> List[Student]:
             student_counter += 1
             
     return students
+

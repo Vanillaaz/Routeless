@@ -71,13 +71,20 @@ def get_network_state():
 def trigger_optimization(req: Optional[OptimizationRequest] = None):
     global last_optimization_result
     reopt = req.force_reroute if req else False
+    students = req.students if (req and req.students is not None) else network_state.students
+    vehicles = req.vehicles if (req and req.vehicles is not None) else network_state.vehicles
+    roads = req.roads if (req and req.roads is not None) else network_state.roads
+    disruptions = req.disruptions if (req and req.disruptions is not None) else network_state.disruptions
+    priority = req.priority_mode if (req and req.priority_mode) else "max_students"
+
     result = solve_dynamic_rescue(
         locations=network_state.locations,
-        roads=network_state.roads,
-        students=network_state.students,
-        vehicles=network_state.vehicles,
-        disruptions=network_state.disruptions,
-        reoptimize_all=reopt
+        roads=roads,
+        students=students,
+        vehicles=vehicles,
+        disruptions=disruptions,
+        reoptimize_all=reopt,
+        priority_mode=priority
     )
     last_optimization_result = result
     return result

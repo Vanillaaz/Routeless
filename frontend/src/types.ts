@@ -101,6 +101,69 @@ export interface Disruption {
   active: boolean;
 }
 
+export interface RouteWaypoint {
+  node_id: string;
+  node_name: string;
+  arrival_time: string;
+  departure_time: string;
+  action: 'start' | 'pickup' | 'dropoff' | 'pass_through';
+  students_boarding: string[];
+  students_alighting: string[];
+  cumulative_distance_km: number;
+  cumulative_time_mins: number;
+}
+
+export interface StudentAssignmentDetail {
+  student_id: string;
+  student_name: string;
+  origin_name: string;
+  destination_name: string;
+  assigned_vehicle_id: string;
+  assigned_vehicle_name: string;
+  pickup_time: string;
+  eta: string;
+  deadline: string;
+  is_on_time: boolean;
+  travel_time_mins: number;
+  detour_mins: number;
+  assignment_reason: string;
+}
+
+export interface UnassignedStudentDetail {
+  student_id: string;
+  student_name: string;
+  origin_name: string;
+  destination_name: string;
+  deadline: string;
+  diagnostic_reason: string;
+  explanation: string;
+}
+
+export interface ConstraintAudit {
+  capacity_violations: number;
+  unavailable_vehicle_assignments: number;
+  closed_road_traversals: number;
+  incompatible_destinations: number;
+  unassigned_students_count: number;
+  audit_passed: boolean;
+  audit_notes: string[];
+}
+
+export interface OptimizationMetrics {
+  solver_name: string;
+  solver_status: string;
+  solve_time_ms: number;
+  objective_value: number;
+  total_students: number;
+  transported_count: number;
+  unassigned_count: number;
+  coverage_percentage: number;
+  fleet_utilization_percentage: number;
+  total_travel_time_mins: number;
+  total_detour_km: number;
+  on_time_percentage: number;
+}
+
 export interface VehicleAssignment {
   vehicle_id: string;
   vehicle_name: string;
@@ -114,6 +177,10 @@ export interface VehicleAssignment {
   eta_minutes: number;
   is_rescue_mission: boolean;
   route_path_coordinates: [number, number][];
+  ordered_waypoints?: RouteWaypoint[];
+  detour_distance_km?: number;
+  vehicle_utilization_percentage?: number;
+  selection_reason?: string;
 }
 
 export interface OptimizationResult {
@@ -124,8 +191,14 @@ export interface OptimizationResult {
   stranded_students: number;
   coverage_percentage: number;
   vehicle_utilization_percentage: number;
+  total_travel_time_mins?: number;
+  total_detour_km?: number;
   assignments: VehicleAssignment[];
+  student_assignments?: StudentAssignmentDetail[];
+  unassigned_students_details?: UnassignedStudentDetail[];
   unserved_student_ids: string[];
+  constraint_audit?: ConstraintAudit;
+  optimization_metrics?: OptimizationMetrics;
   rescue_narrative: string;
   active_disruptions: Disruption[];
 }
