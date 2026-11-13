@@ -67,3 +67,4 @@ export async function toggleRoad(roadId: string) {
   const res = await fetch(`${API_BASE}/roads/${roadId}/toggle-status`, { method: 'POST' });
   return res.json();
 }
+
