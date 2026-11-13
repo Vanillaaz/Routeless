@@ -1,0 +1,629 @@
+Antigravity:Gemini 3.8 flash high
+# GRAMMOVE AI — MASTER PROMPT PACK
+
+## PROMPT 1: Ultimate Project Architect & Builder
+
+You are a senior full-stack engineer, AI architect, product designer, and hackathon-winning technical lead.
+
+Build a complete, production-quality hackathon application called **GRAMMOVE AI — The Transportation Network That Refuses to Leave a Student Stranded.**
+
+### 1. Problem
+Rural students in India depend on limited public transportation. Bus breakdowns, route disruptions, overcrowding, unpredictable demand and poor last-mile connectivity prevent students from reaching educational institutions on time.
+
+### 2. Product vision
+Create an intelligent rural mobility platform that dynamically reorganizes the available transportation network to transport the maximum possible number of students safely and efficiently.
+
+The platform must answer:
+
+"Given the available buses, alternative vehicles, student locations, road conditions, vehicle capacities and arrival deadlines, what is the best possible transportation arrangement right now?"
+
+### 3. Core features
+
+Build the following modules:
+
+**A. Live Mobility Dashboard**
+- Display total students, available vehicles, occupied seats and stranded students.
+- Display active routes and vehicle status.
+- Show transportation coverage percentage.
+- Show upcoming departures and estimated arrivals.
+- Display all information using interactive visual components.
+
+**B. Rural Network Map**
+- Use Leaflet and OpenStreetMap.
+- Display villages, colleges, pickup points and transportation vehicles.
+- Draw routes between locations.
+- Show affected routes during disruptions.
+- Display updated routes after optimization.
+- Use different visual indicators for active, disrupted and reassigned routes.
+
+**C. Student Management**
+- Generate realistic synthetic student records.
+- Each student must have a unique ID, village, destination, pickup location and arrival deadline.
+- Allow students to be grouped by destination and travel direction.
+- Track assigned, unassigned and delayed students.
+
+**D. Fleet Management**
+- Support government buses, private minibuses and shared autos.
+- Each vehicle must have a unique ID, capacity, current location, availability and operating status.
+- Allow vehicles to be marked available, unavailable or under breakdown.
+- Prevent vehicle overcapacity.
+
+**E. AI Dynamic Rescue Engine**
+This is the most important module.
+
+When a disruption happens:
+1. Identify affected students.
+2. Identify available vehicles.
+3. Calculate remaining vehicle capacity.
+4. Group students based on compatible destinations.
+5. Calculate optimized vehicle assignments.
+6. Generate replacement routes.
+7. Identify students who cannot be accommodated.
+8. Display the final transportation plan.
+
+**F. Transportation Crisis Simulator**
+Provide interactive disruption controls:
+- Bus breakdown.
+- Road closure.
+- Sudden 40% increase in student demand.
+- Multiple vehicle breakdowns.
+- Unexpected route delays.
+
+Every scenario must trigger actual recalculation of transportation assignments.
+
+**G. AI Travel Assistant**
+Allow users to ask natural-language questions such as:
+- My bus broke down. How can I reach college?
+- Which alternative vehicle can I take?
+- Which village has the highest transportation shortage?
+- How many students are affected by this disruption?
+
+Use Gemini to interpret questions and explain actual system results.
+
+### 4. Technical architecture
+
+Frontend:
+- React
+- Vite
+- TypeScript
+- Tailwind CSS
+- Recharts
+- Leaflet
+
+Backend:
+- Python
+- FastAPI
+- Pydantic
+- Google OR-Tools
+
+AI:
+- Google Gemini API
+- Structured JSON responses
+- Prompt engineering for disruption interpretation and explanation
+
+Data:
+- Generate synthetic village, student and vehicle datasets.
+- Use realistic Indian rural village names and travel patterns.
+- Do not depend on unavailable external datasets.
+
+### 5. Optimization requirements
+
+Use Google OR-Tools or a genuine mathematical optimization algorithm.
+
+Optimize:
+- Maximum number of students transported.
+- Minimum total travel time.
+- Minimum unnecessary detours.
+- Vehicle capacity utilization.
+- Student arrival deadlines.
+- Transportation cost where available.
+
+Hard constraints:
+- Never exceed vehicle capacity.
+- Never assign unavailable vehicles.
+- Never use closed roads.
+- Never assign a student to incompatible destinations.
+- Never claim a student is transported unless an assignment exists.
+
+If capacity is insufficient, clearly identify unserved students.
+
+### 6. Design requirements
+
+Build an elegant, modern, professional SaaS dashboard.
+
+Visual direction:
+- Dark navy sidebar.
+- Light neutral dashboard background.
+- Green accents for successful transportation.
+- Amber for warnings.
+- Red for disruptions.
+- Clean typography.
+- Modern charts and cards.
+- Interactive maps.
+- Responsive layout.
+
+Avoid:
+- Generic AI-generated landing pages.
+- Excessive gradients.
+- Unnecessary animations.
+- Fake statistics.
+- Non-functional buttons.
+- Placeholder charts presented as real results.
+
+### 7. Important implementation rules
+
+- First inspect the existing project structure.
+- Reuse existing working code.
+- Do not overwrite useful files unnecessarily.
+- Build the complete application, not just a prototype UI.
+- Connect frontend and backend.
+- Ensure every major button performs a real action.
+- Handle API errors gracefully.
+- Use environment variables for API keys.
+- Never hardcode API secrets.
+- Include sample data so the application works immediately.
+- Provide a README with setup and execution instructions.
+
+### 8. Time constraint
+
+This is a 3-hour hackathon.
+
+Prioritize:
+1. Functional dashboard.
+2. Working disruption simulator.
+3. Actual student and vehicle reassignment.
+4. Interactive map.
+5. Gemini integration.
+6. Testing and deployment.
+
+Do not waste time building unnecessary authentication or complex administrative systems.
+
+### 9. Expected deliverable
+
+A working application that can demonstrate a rural transportation network recovering from a bus breakdown in real time.
+
+Start by inspecting the environment and creating the project. Implement the most important functionality first. Do not stop after providing a plan. Write the actual code, run it, test it and fix errors.
+
+
+
+Prompt 2:
+
+The UI looked really good before this, keep the platform simple and user friendly , i don't want too many things making it confusing and cluttered, it must be just an smart bus allocation and bus tracking site making it easier for students to travel , students are the main users of this applications so keep the ai attractive and user friendly, i don't need bus simulation and all, all that excess things are not required since those are not necessary for an actually deployed app
+it should show the bus stops, current movement of the bus along with the time stamps, option to enter bus number and track where it currently is at, give all the options for the travel and recommend the best among those
+
+Prompt 3:
+Act as a specialist in operations research, vehicle routing, combinatorial optimization and transportation systems.
+
+Implement the GRAMMOVE AI Dynamic Rescue Engine.
+
+This is the core intellectual and technical component of the project.
+
+### Objective
+
+Given:
+- A set of students.
+- A set of available vehicles.
+- Student pickup locations.
+- Student destinations.
+- Vehicle capacities.
+- Arrival deadlines.
+- Road travel times.
+- Disruption information.
+
+Calculate an optimized transportation allocation.
+
+### Optimization objectives
+
+1. Maximize the number of students transported.
+2. Minimize total travel time.
+3. Minimize total detour distance.
+4. Minimize students arriving after their deadlines.
+5. Improve vehicle utilization.
+
+### Constraints
+
+- Vehicle capacity must never be exceeded.
+- Unavailable vehicles cannot be assigned.
+- Disrupted roads must not be used.
+- Students must reach their correct destinations.
+- A vehicle cannot serve incompatible trips simultaneously.
+- Every student must have a clearly defined assignment status.
+
+### Implementation
+
+Use Google OR-Tools where feasible.
+
+Represent:
+- Students as demand units.
+- Vehicles as capacity-constrained resources.
+- Villages as pickup nodes.
+- Colleges as destination nodes.
+- Roads as weighted graph edges.
+
+Create a backend optimization endpoint:
+
+POST /api/optimize
+
+Input:
+- Students.
+- Vehicles.
+- Road network.
+- Disruption details.
+
+Output:
+- Optimized vehicle assignments.
+- Updated routes.
+- Students successfully assigned.
+- Students remaining unassigned.
+- Estimated arrival times.
+- Total travel time.
+- Vehicle utilization.
+- Optimization metrics.
+
+### Crisis handling
+
+When a bus breaks down:
+1. Remove that bus from available capacity.
+2. Identify all students assigned to it.
+3. Recalculate the network.
+4. Reassign students to remaining vehicles.
+5. Identify uncovered students.
+6. Return the updated solution.
+
+### Transparency
+
+Return the reasoning behind the allocation:
+- Why a vehicle was selected.
+- Why a student was assigned to a particular vehicle.
+- Why certain students remain unassigned.
+- Which constraints affected the result.
+
+Do not fabricate optimization results.
+
+Create realistic test cases for:
+- One bus breakdown.
+- Multiple bus breakdowns.
+- Road closure.
+- Increased demand.
+- Insufficient capacity.
+
+Write clean, modular and testable code.
+
+
+
+# MASTER PROMPT: GRAMMOVE AI — EXAM-DAY EMERGENCY CRISIS MODE
+
+You are a senior AI engineer, operations research specialist, transportation optimization architect and full-stack developer.
+
+We have received an unexpected hackathon challenge. Your task is to adapt our EXISTING GRAMMOVE AI application to handle the following emergency scenario.
+
+IMPORTANT: Do not create a new application. Inspect the existing codebase, understand its architecture and extend the current implementation without breaking existing features.
+
+==================================================
+1. SURPRISE CHALLENGE: EXAM-DAY CRISIS
+==================================================
+
+A rural transportation network experiences four simultaneous disruptions:
+
+A. BUS BREAKDOWN
+- Two government buses become unavailable due to technical failures.
+- All students assigned to these buses must be identified.
+- Their assignments must be reconsidered.
+
+B. DEMAND SURGE
+- Student transportation demand increases by 40%.
+- New transportation requests must be generated or accepted.
+- The system must recalculate demand and capacity.
+
+C. FLOODED ROAD
+- A major road connecting two villages becomes inaccessible due to flooding.
+- The road must be removed from the available transportation graph.
+- Vehicles must use alternative feasible paths.
+- No route should cross the flooded connection.
+
+D. EXAMINATION DEADLINES
+- Several students have examinations scheduled within the next two hours.
+- These students must receive higher transportation priority.
+- The system must consider exam start time, pickup time, travel duration and arrival buffer.
+- Students who cannot realistically arrive before their examination must be identified.
+
+==================================================
+2. CREATE A NEW MODULE: EXAM-DAY CRISIS COMMAND CENTER
+==================================================
+
+Add a prominent EXAM-DAY CRISIS MODE button to the existing dashboard.
+
+When activated, open a dedicated emergency command center.
+
+Display:
+
+- Crisis status.
+- Number of failed buses.
+- Percentage of increased demand.
+- Blocked road connection.
+- Total students requiring transportation.
+- Students with upcoming examinations.
+- Available vehicles.
+- Total remaining seating capacity.
+- Students successfully assigned.
+- Students expected to arrive on time.
+- Students at risk of missing examinations.
+- Students remaining unassigned.
+
+Use live values from the backend rather than hardcoded dashboard statistics.
+
+==================================================
+3. BUILD THE EXAM PRIORITY ENGINE
+==================================================
+
+Implement a priority-aware student allocation system.
+
+Each student should have:
+
+- Student ID.
+- Pickup village.
+- Destination institution.
+- Examination start time.
+- Estimated travel duration.
+- Required arrival buffer.
+- Current assignment status.
+
+Calculate the latest feasible departure time:
+
+Latest departure = Exam start time - Arrival buffer - Estimated travel duration.
+
+Classify students:
+
+P1: Examination within 60 minutes.
+P2: Examination within 120 minutes.
+P3: No immediate examination.
+
+Use configurable priority weights.
+
+However, do not blindly use priority scores. The optimization must also consider actual arrival feasibility.
+
+A student with an imminent examination but an impossible travel time must be marked AT RISK rather than falsely assigned as successfully transported.
+
+==================================================
+4. IMPLEMENT MULTI-OBJECTIVE TRANSPORT OPTIMIZATION
+==================================================
+
+Extend the existing Google OR-Tools optimization engine.
+
+Optimization objectives, in order:
+
+1. Maximize the number of examination students who can reach their institutions before their deadlines.
+2. Maximize the total number of students transported.
+3. Minimize the number of students missing their examination deadlines.
+4. Minimize total travel time and detours.
+5. Maximize available vehicle utilization.
+
+Hard constraints:
+
+- Failed buses cannot be assigned.
+- Vehicle capacity cannot be exceeded.
+- Flooded roads cannot be traversed.
+- Vehicle routes must be physically feasible.
+- Students must reach their correct destinations.
+- Vehicles cannot be simultaneously assigned to incompatible trips.
+- Account for vehicle availability and travel time.
+- Respect examination arrival deadlines wherever feasible.
+
+Use lexicographic optimization or weighted objectives with sufficiently separated priority levels so that examination coverage cannot be sacrificed for a small improvement in ordinary travel time.
+
+If a complete solution is impossible, return the best feasible allocation and clearly explain the remaining shortage.
+
+==================================================
+5. DYNAMIC ROAD NETWORK RECONFIGURATION
+==================================================
+
+Represent the village road network as a weighted graph.
+
+When the flooding event is activated:
+
+- Mark the affected road edge as CLOSED.
+- Recalculate shortest paths.
+- Use alternative routes where available.
+- Recalculate vehicle travel times.
+- Identify isolated villages.
+- Mark unreachable destinations.
+
+Use Dijkstra or another suitable shortest-path algorithm.
+
+Do not draw an alternative route that uses the blocked road.
+
+The map must visually distinguish:
+
+- Normal roads.
+- Alternative routes.
+- Flooded and inaccessible roads.
+- Failed buses.
+- Available vehicles.
+- Student pickup points.
+- Educational institutions.
+
+==================================================
+6. DYNAMIC FLEET REALLOCATION
+==================================================
+
+After identifying the two failed buses:
+
+1. Remove their seating capacity from the available fleet.
+2. Retrieve the students assigned to them.
+3. Calculate the remaining fleet capacity.
+4. Identify available private minibuses and shared vehicles.
+5. Group compatible student journeys.
+6. Reassign students using the optimization engine.
+7. Generate new pickup sequences and routes.
+8. Identify remaining transportation shortages.
+
+Never exceed actual vehicle capacity.
+
+If there are insufficient vehicles, prioritize feasible examination journeys and report the remaining students transparently.
+
+==================================================
+7. AI-POWERED CRISIS ANALYSIS
+==================================================
+
+Integrate Google Gemini into the emergency workflow.
+
+Gemini should:
+
+- Interpret the crisis scenario.
+- Convert natural-language disruption descriptions into structured JSON.
+- Explain the effects of the disruptions.
+- Explain why particular vehicles were reassigned.
+- Explain examination priority decisions.
+- Summarize alternative routes.
+- Generate recommendations for unresolved shortages.
+
+IMPORTANT ARCHITECTURAL RULE:
+
+Gemini must NOT independently invent or calculate final vehicle assignments.
+
+The mathematical optimization engine must generate the actual allocation.
+
+Gemini should interpret the crisis and explain the verified optimization output.
+
+==================================================
+8. CREATE AN INTERACTIVE CRISIS SIMULATOR
+==================================================
+
+Add an EXECUTE EXAM-DAY CRISIS button.
+
+When clicked, execute the complete scenario in sequence:
+
+STEP 1: Mark two government buses as BROKEN DOWN.
+
+STEP 2: Increase student demand by 40%.
+
+STEP 3: Mark the selected road connecting two villages as FLOODED.
+
+STEP 4: Activate examination priority.
+
+STEP 5: Run the optimization engine.
+
+STEP 6: Update student and vehicle assignments.
+
+STEP 7: Recalculate all routes.
+
+STEP 8: Update the dashboard and interactive map.
+
+STEP 9: Generate a Gemini-powered crisis response report.
+
+Show a processing animation and meaningful execution stages.
+
+The simulation must actually modify the underlying application state and backend data. It must not be a sequence of cosmetic animations.
+
+==================================================
+9. BEFORE-AND-AFTER ANALYTICS
+==================================================
+
+Create a comparison dashboard.
+
+Show:
+
+- Students transported before crisis.
+- Students transported after optimization.
+- Examination students arriving on time.
+- Students at risk.
+- Available vehicle capacity before and after.
+- Total estimated transportation time.
+- Students remaining unassigned.
+- Transportation coverage.
+
+Show the results using charts and comparison cards.
+
+All statistics must be calculated from actual simulation data.
+
+==================================================
+10. EMERGENCY REPORT
+==================================================
+
+Generate a professional report containing:
+
+1. Description of the crisis.
+2. Affected villages.
+3. Failed vehicles.
+4. Blocked road.
+5. Number of affected students.
+6. Examination priority analysis.
+7. New vehicle assignments.
+8. Alternative routes.
+9. Students arriving on time.
+10. Students at risk.
+11. Remaining transportation shortage.
+12. Recommendations.
+
+==================================================
+11. TESTING AND VALIDATION
+==================================================
+
+Test the complete scenario.
+
+Verify:
+
+- Both failed buses are excluded.
+- Demand increases by exactly 40%.
+- The flooded road is not used.
+- All assignments respect vehicle capacity.
+- Examination priorities are respected by the optimization objective.
+- No student is counted twice.
+- All travel times are recalculated.
+- Students with impossible arrival deadlines are flagged.
+- The final numbers reconcile.
+- Existing application features continue working.
+
+==================================================
+12. IMPLEMENTATION PRIORITY
+==================================================
+
+We are in a live hackathon limited remaining time.
+
+Implement in this order:
+
+1. Crisis simulation and backend state changes.
+2. Exam priority allocation.
+3. Vehicle reallocation.
+4. Flooded road avoidance and alternative routing.
+5. Updated interactive map.
+6. Before-and-after dashboard.
+7. Gemini explanation and emergency report.
+
+Do not waste time creating a new authentication system or unrelated features.
+
+Preserve the existing technology stack wherever possible.
+
+Inspect the project, implement the changes, run the application, test the complete crisis scenario and fix all critical errors.
+
+The final objective is to demonstrate a working transportation network that intelligently responds to a simultaneous emergency while maximizing the number of students who can reach their examinations on time.
+
+
+Take inspiration from these.
+
+
+
+
+review the codebase and fix all the broken buttons, put a dropdown to list all the buses so they the user can select which bus to track, keep an option to select our current location and destination location, make the location details and distance details realistic, show cthe movement of the bus in the live tracking, show the directions of the bus properly like how it shows on google maps
+
+
+I need u to show the map and the roads correctly and not the simulated video, I need the live movements of the bus.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
