@@ -1,7 +1,7 @@
 import os
 import json
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
@@ -58,6 +58,15 @@ def startup_event():
         reoptimize_all=False
     )
 
+@app.get("/api/debug-headers")
+async def debug_headers(request: Request):
+    return {
+        "headers": dict(request.headers),
+        "path": request.url.path,
+        "query": str(request.query_params)
+    }
+
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
     return {
@@ -68,6 +77,7 @@ def health_check():
         "total_vehicles": len(network_state.vehicles)
     }
 
+@app.get("/network")
 @app.get("/api/network")
 def get_network_state():
     return {
@@ -80,6 +90,7 @@ def get_network_state():
         "last_optimization": last_optimization_result.dict() if last_optimization_result else None
     }
 
+@app.post("/optimize", response_model=OptimizationResult)
 @app.post("/api/optimize", response_model=OptimizationResult)
 def trigger_optimization(req: Optional[OptimizationRequest] = None):
     global last_optimization_result
@@ -170,10 +181,12 @@ def build_exam_crisis_response() -> ExamCrisisResponse:
         timestamp="07:55 AM"
     )
 
+@app.get("/crisis/exam-day", response_model=ExamCrisisResponse)
 @app.get("/api/crisis/exam-day", response_model=ExamCrisisResponse)
 def get_exam_crisis_status():
     return build_exam_crisis_response()
 
+@app.post("/crisis/exam-day", response_model=ExamCrisisResponse)
 @app.post("/api/crisis/exam-day", response_model=ExamCrisisResponse)
 def trigger_exam_crisis_endpoint():
     global last_optimization_result
@@ -193,6 +206,7 @@ def trigger_exam_crisis_endpoint():
     )
     return build_exam_crisis_response()
 
+@app.post("/simulate")
 @app.post("/api/simulate")
 def trigger_simulation(req: SimulationScenarioRequest):
     global last_optimization_result
@@ -240,6 +254,7 @@ def trigger_simulation(req: SimulationScenarioRequest):
         "optimization": last_optimization_result.dict()
     }
 
+@app.post("/chat", response_model=ChatResponse)
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_with_assistant(req: ChatRequest):
     response = assistant_service.ask(
@@ -321,6 +336,7 @@ def generate_route_coordinates(stops_data):
     return coords
 
 
+@app.get("/track/{bus_query}")
 @app.get("/api/track/{bus_query}")
 def track_bus(bus_query: str):
     """Real-time bus tracking by bus ID, registration number, or route name."""
@@ -453,6 +469,7 @@ def track_bus(bus_query: str):
     }
 
 
+@app.get("/plan-trip")
 @app.get("/api/plan-trip")
 def plan_trip(origin: str = "V2", destination: str = "C3"):
     """
@@ -640,8 +657,15 @@ if os.path.exists(frontend_dist_dir):
 
     @app.get("/{full_path:path}")
     async def serve_frontend(full_path: str):
-        if full_path.startswith("api/"):
+        if full_path in ("", "api", "api/", "api/index.py"):
+            index_file = os.path.join(frontend_dist_dir, "index.html")
+            if os.path.exists(index_file):
+                return FileResponse(index_file)
+            return {"status": "healthy", "service": "RouteFlow"}
+
+        if full_path.startswith("api/") and not full_path.endswith("index.py") and full_path != "api/":
             raise HTTPException(status_code=404, detail="API route not found")
+
         target = os.path.join(frontend_dist_dir, full_path)
         if full_path and os.path.exists(target) and os.path.isfile(target):
             return FileResponse(target)
