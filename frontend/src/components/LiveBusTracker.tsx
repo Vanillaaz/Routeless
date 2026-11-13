@@ -67,8 +67,8 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   
-  // View mode: 'timeline' (Image 2 Top) or 'live_map' (Image 2 Bottom)
-  const [viewMode, setViewMode] = useState<'timeline' | 'live_map'>('timeline');
+  // View mode: 'timeline' (Route Stops Timetable) or 'live_map' (Google Maps Navigation)
+  const [viewMode, setViewMode] = useState<'timeline' | 'live_map'>('live_map');
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [isReminderSet, setIsReminderSet] = useState<boolean>(false);
   const [sharedToast, setSharedToast] = useState<boolean>(false);
@@ -87,11 +87,10 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const movingMarkerRef = useRef<L.Marker | null>(null);
+  const casingPolylineRef = useRef<L.Polyline | null>(null);
   const passedPolylineRef = useRef<L.Polyline | null>(null);
   const upcomingPolylineRef = useRef<L.Polyline | null>(null);
   const stopMarkersRef = useRef<L.LayerGroup | null>(null);
-  const animFrameRef = useRef<number | null>(null);
-  const lastStepTimeRef = useRef<number>(Date.now());
 
   const loadBusData = async (query: string) => {
     if (!query.trim()) return;
@@ -124,8 +123,8 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
     }
 
     const map = L.map(mapContainerRef.current, {
-      center: [12.72, 77.28],
-      zoom: 12,
+      center: [12.794, 77.382],
+      zoom: 13,
       zoomControl: false
     });
 
@@ -133,12 +132,16 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
-      attribution: '© OpenStreetMap contributors | RouteFlow Live'
+      attribution: '© OpenStreetMap contributors | RouteFlow Live GPS'
     }).addTo(map);
 
     const stopGroup = L.layerGroup().addTo(map);
     stopMarkersRef.current = stopGroup;
     mapInstanceRef.current = map;
+
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
 
     return () => {
       map.remove();
@@ -146,7 +149,7 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
     };
   }, [viewMode]);
 
-  // Draw Stops and Polylines when busData updates
+  // Draw Stops, Polylines, Directions and Google Maps Elements
   useEffect(() => {
     if (viewMode !== 'live_map') return;
     const map = mapInstanceRef.current;
@@ -160,19 +163,31 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
       : busData.stops?.map((s: any) => [s.lat, s.lng]) || [];
 
     if (coords.length > 1) {
-      // 1. Passed path (initially empty)
+      // 1. Google Maps Route Casing / Drop Shadow
+      if (casingPolylineRef.current) {
+        casingPolylineRef.current.remove();
+      }
+      casingPolylineRef.current = L.polyline(coords, {
+        color: '#0d47a1',
+        weight: 10,
+        opacity: 0.35,
+        lineCap: 'round',
+        lineJoin: 'round'
+      }).addTo(map);
+
+      // 2. Passed path (grey)
       if (passedPolylineRef.current) {
         passedPolylineRef.current.remove();
       }
       passedPolylineRef.current = L.polyline([], {
         color: '#94a3b8',
         weight: 6,
-        opacity: 0.65,
+        opacity: 0.7,
         lineCap: 'round',
         lineJoin: 'round'
       }).addTo(map);
 
-      // 2. Upcoming path (Google Maps Route Blue)
+      // 3. Upcoming path (Signature Google Maps Blue)
       if (upcomingPolylineRef.current) {
         upcomingPolylineRef.current.remove();
       }
@@ -184,28 +199,174 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
         lineJoin: 'round'
       }).addTo(map);
 
-      // 3. Stop pins with labeled pulses
-      busData.stops?.forEach((stop: any, idx: number) => {
-        const isFirst = idx === 0;
-        const isLast = idx === busData.stops.length - 1;
+      // 4. Directional chevrons along the polyline showing flow of travel
+      const chevronStep = Math.max(25, Math.floor(coords.length / 8));
+      for (let i = chevronStep; i < coords.length - 8; i += chevronStep) {
+        const p1 = coords[i];
+        const p2 = coords[i + 1];
+        const b = calculateBearing(p1[0], p1[1], p2[0], p2[1]);
+        const chevronIcon = L.divIcon({
+          className: 'custom-map-icon',
+          html: `
+            <div style="transform: rotate(${b}deg); display: flex; align-items: center; justify-content: center; opacity: 0.9;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
+                <polyline points="9 18 15 12 9 6" stroke="#ffffff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </div>
+          `,
+          iconSize: [12, 12],
+          iconAnchor: [6, 6]
+        });
+        L.marker(p1, { icon: chevronIcon, interactive: false }).addTo(stopGroup);
+      }
 
-        const stopIcon = L.divIcon({
+      // 5. Alternative Route Display (for Byramangala - Bidadi corridor shown in Google Maps screenshot)
+      if (selectedBusId === 'BUS-101' || busData?.vehicle_id === 'BUS-101') {
+        const altCoords: [number, number][] = [
+          [12.793187, 77.388659],
+          [12.7960, 77.3840],
+          [12.8010, 77.3780],
+          [12.8075, 77.3725],
+          [12.8130, 77.3685],
+          [12.8175, 77.3710],
+          [12.8115, 77.3755],
+          [12.8020, 77.3770],
+          [12.796403, 77.37792]
+        ];
+        L.polyline(altCoords, {
+          color: '#94a3b8',
+          weight: 4,
+          dashArray: '5, 8',
+          opacity: 0.75,
+          lineCap: 'round',
+          lineJoin: 'round'
+        }).addTo(stopGroup);
+
+        const altPillIcon = L.divIcon({
           className: 'custom-map-icon',
           html: `
             <div style="
-              width: ${isFirst || isLast ? '18px' : '14px'}; 
-              height: ${isFirst || isLast ? '18px' : '14px'}; 
-              background: #ffffff; 
-              border: 3px solid ${isFirst ? '#2563eb' : isLast ? '#059669' : '#475569'}; 
-              border-radius: 50%; 
-              box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+              display: inline-flex;
+              align-items: center;
+              gap: 4px;
+              background: #ffffff;
+              color: #475569;
+              padding: 4px 10px;
+              border-radius: 16px;
+              font-weight: 700;
+              font-size: 11px;
+              box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+              border: 1.5px solid #cbd5e1;
+              white-space: nowrap;
+              transform: translate(-50%, -50%);
+              pointer-events: none;
+            ">
+              <span>17 min</span>
+              <span style="font-size: 9px; color: #94a3b8;">(Alt via Abbanakuppe)</span>
+            </div>
+          `,
+          iconSize: [110, 26],
+          iconAnchor: [55, 13]
+        });
+        L.marker([12.812, 77.372], { icon: altPillIcon, interactive: false }).addTo(stopGroup);
+      }
+
+      // 6. Floating Google Maps ETA Pill on primary route
+      const midIdx = Math.floor(coords.length * 0.45);
+      const midCoord = coords[midIdx];
+      const etaPillIcon = L.divIcon({
+        className: 'custom-map-icon',
+        html: `
+          <div style="
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            background: #1a73e8;
+            color: #ffffff;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 800;
+            font-size: 12px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+            border: 2px solid #ffffff;
+            white-space: nowrap;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+          ">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.5 2.8C2 10.9 2 11.2 2 11.5V16c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+            <span>14 min</span>
+            <span style="font-size: 10px; opacity: 0.9;">(${totalDistance} km)</span>
+          </div>
+        `,
+        iconSize: [120, 30],
+        iconAnchor: [60, 15]
+      });
+      L.marker(midCoord, { icon: etaPillIcon, interactive: false }).addTo(stopGroup);
+
+      // 7. Google Maps Start Waypoint (Circle)
+      const startPos = coords[0];
+      const startIcon = L.divIcon({
+        className: 'custom-map-icon',
+        html: `
+          <div style="position: relative; width: 24px; height: 24px; background: #ffffff; border: 4.5px solid #1a73e8; border-radius: 50%; box-shadow: 0 3px 10px rgba(0,0,0,0.35); cursor: pointer;">
+            <div style="position: absolute; inset: 2.5px; background: #1a73e8; border-radius: 50%;"></div>
+          </div>
+        `,
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+      const startM = L.marker(startPos, { icon: startIcon, zIndexOffset: 800 }).addTo(stopGroup);
+      startM.bindPopup(`
+        <div style="font-family: inherit; font-size: 11px;">
+          <strong style="color: #1a73e8;">● Origin / Boarding Point</strong><br/>
+          <span style="color: #0f172a; font-weight: bold;">${stops[0]?.name || busData?.current_location_name || 'Byramangala'}</span><br/>
+          <span style="color: #64748b;">Scheduled Departure: 07:15 AM</span>
+        </div>
+      `);
+
+      // 8. Google Maps Red Destination Teardrop Pin
+      const destPos = coords[coords.length - 1];
+      const destIcon = L.divIcon({
+        className: 'custom-map-icon',
+        html: `
+          <div style="position: relative; width: 34px; height: 44px; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.4)); cursor: pointer;">
+            <svg width="34" height="44" viewBox="0 0 34 44" fill="none">
+              <path d="M17 0C7.611 0 0 7.611 0 17C0 29.5 17 44 17 44C17 44 34 29.5 34 17C34 7.611 26.389 0 17 0Z" fill="#EA4335" />
+              <circle cx="17" cy="17" r="7" fill="#FFFFFF" />
+            </svg>
+          </div>
+        `,
+        iconSize: [34, 44],
+        iconAnchor: [17, 44]
+      });
+      const destM = L.marker(destPos, { icon: destIcon, zIndexOffset: 950 }).addTo(stopGroup);
+      destM.bindPopup(`
+        <div style="font-family: inherit; font-size: 11px;">
+          <strong style="color: #ea4335;">● Destination</strong><br/>
+          <span style="color: #0f172a; font-weight: bold;">${busData?.destination_name || 'Bidadi Technical Academy'}</span><br/>
+          <span style="color: #64748b;">Expected Arrival: 07:55 AM</span>
+        </div>
+      `);
+
+      // 9. Intermediate stops
+      stops.slice(1, -1).forEach((stop: any) => {
+        const intIcon = L.divIcon({
+          className: 'custom-map-icon',
+          html: `
+            <div style="
+              width: 14px;
+              height: 14px;
+              background: #ffffff;
+              border: 3px solid #475569;
+              border-radius: 50%;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+              cursor: pointer;
             "></div>
           `,
-          iconSize: [18, 18],
-          iconAnchor: [9, 9]
+          iconSize: [14, 14],
+          iconAnchor: [7, 7]
         });
-
-        const m = L.marker([stop.lat, stop.lng], { icon: stopIcon }).addTo(stopGroup);
+        const m = L.marker([stop.lat, stop.lng], { icon: intIcon }).addTo(stopGroup);
         m.bindPopup(`
           <div style="font-family: inherit; font-size: 11px;">
             <strong style="color: #0f172a;">${stop.name}</strong><br/>
@@ -215,8 +376,7 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
         `);
       });
 
-      // 4. Moving bus marker (Google Maps Nav puck with direction heading)
-      const startPos = coords[0];
+      // 10. Moving Bus Nav Puck (with direction arrow & floating upright plate tag)
       const initialBearing = coords.length > 1 ? calculateBearing(coords[0][0], coords[0][1], coords[1][0], coords[1][1]) : 45;
       setCurrentHeading(initialBearing);
 
@@ -225,44 +385,65 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
         html: `
           <div id="bus-nav-puck" style="
             position: relative;
-            width: 44px;
-            height: 44px;
+            width: 52px;
+            height: 52px;
             display: flex;
             align-items: center;
             justify-content: center;
             transform: rotate(${initialBearing}deg);
             transition: transform 0.2s linear;
           ">
-            <!-- Pulsing outer ring -->
+            <!-- Floating Upright Tag -->
+            <div id="bus-plate-tag" style="
+              position: absolute;
+              top: -26px;
+              background: #0f172a;
+              color: #ffffff;
+              font-size: 10px;
+              font-weight: 800;
+              padding: 2px 7px;
+              border-radius: 8px;
+              border: 1px solid #3b82f6;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+              white-space: nowrap;
+              transform: rotate(-${initialBearing}deg);
+              transition: transform 0.2s linear;
+              pointer-events: none;
+            ">
+              ${regNo} • ${currentSpeed} km/h
+            </div>
+
+            <!-- Radar Pulse -->
             <div style="
               position: absolute;
-              width: 44px;
-              height: 44px;
+              width: 52px;
+              height: 52px;
               border-radius: 50%;
-              background: rgba(37, 99, 235, 0.25);
+              background: rgba(26, 115, 232, 0.28);
               animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
             "></div>
-            <!-- Central Navigation Icon -->
+
+            <!-- Central Navigation Puck -->
             <div style="
-              width: 32px;
-              height: 32px;
+              width: 36px;
+              height: 36px;
               border-radius: 50%;
-              background: #1d4ed8;
-              border: 2.5px solid #ffffff;
-              box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+              background: #1a73e8;
+              border: 3px solid #ffffff;
+              box-shadow: 0 4px 14px rgba(0,0,0,0.45);
               display: flex;
               align-items: center;
               justify-content: center;
             ">
               <!-- Directional Pointer Arrow -->
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                <polygon points="12 2 19 21 12 17 5 21 12 2" fill="#ffffff" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <polygon points="12 2 20 21 12 17 4 21 12 2" fill="#ffffff" />
               </svg>
             </div>
           </div>
         `,
-        iconSize: [44, 44],
-        iconAnchor: [22, 22]
+        iconSize: [52, 52],
+        iconAnchor: [26, 26]
       });
 
       if (movingMarkerRef.current) {
@@ -271,10 +452,13 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
       movingMarkerRef.current = L.marker(startPos, { icon: navPuckIcon, zIndexOffset: 1000 }).addTo(map);
 
       map.fitBounds(L.polyline(coords).getBounds(), { padding: [60, 60] });
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
     }
   }, [viewMode, busData]);
 
-  // Google Maps Smooth Continuous Movement Animation Loop
+  // Google Maps Continuous Smooth Road Movement Animation Loop
   useEffect(() => {
     if (viewMode !== 'live_map' || !isPlaying || !busData) return;
 
@@ -302,6 +486,10 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
           const puckElem = document.getElementById('bus-nav-puck');
           if (puckElem) {
             puckElem.style.transform = `rotate(${bearing}deg)`;
+          }
+          const plateTag = document.getElementById('bus-plate-tag');
+          if (plateTag) {
+            plateTag.style.transform = `rotate(-${bearing}deg)`;
           }
         }
 
@@ -408,7 +596,7 @@ export const LiveBusTracker: React.FC<LiveBusTrackerProps> = ({
               >
                 {fleetList.map((v: any) => (
                   <option key={v.id} value={v.id}>
-                    [{v.reg_no || v.id}] {v.name} ({v.type === 'govt_bus' ? 'KSRTC Express' : v.type === 'minibus' ? 'MiniBus' : 'Shared Auto'})
+                    [{v.reg_no || v.id}] {v.name} • {v.route_title || 'Corridor Route'} ({v.type === 'govt_bus' ? 'KSRTC Express' : v.type === 'minibus' ? 'MiniBus' : 'Shared Auto'})
                   </option>
                 ))}
               </select>

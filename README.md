@@ -1,99 +1,215 @@
-# GRAMMOVE AI
-### *Smart Bus Allocation & Live Bus Tracking for Rural Students*
+# Routeless / RouteFlow
+### *Intelligent Rural Mobility, Dynamic Bus Allocation & Live Road GPS Tracking*
 
-[![Built for Students](https://img.shields.io/badge/Designed%20For-Rural%20Students-emerald.svg)](https://github.com)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.12-blue.svg)](https://fastapi.tiangolo.com)
-[![React 19](https://img.shields.io/badge/Frontend-React%2019%20%7C%20TypeScript%20%7C%20Tailwind%20CSS-teal.svg)](https://react.dev)
-[![Leaflet](https://img.shields.io/badge/Maps-Leaflet%20%7C%20OpenStreetMap-green.svg)](https://leafletjs.com)
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%202.5-orange.svg)](https://ai.google.dev)
-
----
-
-## 1. What is GRAMMOVE AI?
-**GRAMMOVE AI** is a simple, student-friendly web application designed to help rural college students in India travel safely and reach their educational institutions on time.
-
-Instead of cluttered admin simulators or confusing control panels, **GRAMMOVE AI** focuses 100% on what students actually need:
-1. **Live Bus Tracking**: Enter your bus number (e.g. `KA-42-F-1024` or `BUS-101`) to see its live movement on the map, current speed, available seats, and next stop.
-2. **Bus Stops & Timestamps**: View all stops along the route with scheduled departure and estimated arrival times.
-3. **Smart Route Finder & Best Travel Recommendation**: Select your village and your college; the system compares all options (Government Buses, Minibuses, and Shared Autos) and **recommends the best option** (fastest, direct, guaranteed seats before college deadlines).
-4. **Friendly AI Student Assistant**: An attractive, welcoming AI copilot that answers student questions in plain English or Kannada transliteration.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python%203.11+-009688.svg)](https://fastapi.tiangolo.com)
+[![React 19](https://img.shields.io/badge/Frontend-React%2019%20%7C%20TypeScript%20%7C%20Tailwind%20CSS-38bdf8.svg)](https://react.dev)
+[![Leaflet](https://img.shields.io/badge/Maps-Leaflet%20%7C%20OpenStreetMap%20%7C%20OSRM-16a34a.svg)](https://leafletjs.com)
+[![OR-Tools](https://img.shields.io/badge/Optimization-Google%20OR--Tools%20(MILP)-4285F4.svg)](https://developers.google.com/optimization)
+[![Google Gemini](https://img.shields.io/badge/AI%20Copilot-Google%20Gemini%202.5-f59e0b.svg)](https://ai.google.dev)
 
 ---
 
-## 2. Core Student Features
+## 🌟 Overview
 
-### 🚌 A. Live Bus Tracker
-- **Search by Bus Number or Route**:
-  Enter your bus number (e.g., `KA-42-F-1024`, `BUS-101`, `KA-42-F-2180`, `KA-42-M-4412`) or tap any popular route pill.
-- **Real-Time Telemetry & Movement**:
-  - Live bus location with animated pulsating marker moving along the route corridor.
-  - Live speed indicator (e.g., `38 km/h`).
-  - Next stop alert with arrival timestamp (e.g., `Next: Vibhutikere Cross at 07:48 AM`).
-  - Seat availability counter (e.g., `12 Seats Available`).
-- **Route Stops & Timestamps Stepper**:
-  - Step-by-step visual vertical timeline showing all scheduled stops with arrival timestamps and status (`Departed ✓`, `Approaching Now`, `Upcoming`).
-- **Driver Telemetry**:
-  - Assigned driver name and one-click call button.
+**Routeless / RouteFlow** (powered by **GRAMMOVE AI**) is an intelligent rural transportation command center and student-friendly mobility web application. It addresses the critical transportation challenges faced by rural students in India by combining:
 
-### 🗺️ B. Smart Route Finder & Travel Recommendations
-- **Simple 2-Step Trip Planner**:
-  - Step 1: Select your starting village (e.g., `Doddamallur`, `Byramangala`, `Harohalli`, `Kailancha`, `Akkur`, `Vibhutikere`, `Sugganahalli`, `Maralawadi`).
-  - Step 2: Select your destination college (e.g., `Ramanagara Govt Polytechnic`, `Channapatna First Grade College & ITI`, `Bidadi Tech Academy`, `Kanakapura Medical Institute`).
-- **Compares All Travel Options**:
-  - **Option 1 (⭐ AI RECOMMENDED BEST ROUTE)**: Highlighted with an emerald card and verified badge explaining why it's the best (e.g. *Direct ride, zero transfers, arrives at 08:15 AM well before 08:45 AM deadline, free with student bus pass*).
-  - **Option 2 (Cauvery Rural Minibus)**: Quick ride, ₹10 subsidized fare, comfortable seating.
-  - **Option 3 (Gramina Mitra Shared Auto)**: Earliest arrival option for morning diploma practicals.
-- **One-Click Live Tracking**:
-  - Every option has a **"Track This Bus Live"** button that instantly transitions to the live map tracker for that specific vehicle.
-
-### 📍 C. Bus Stops & Timetable Directory
-- **Interactive Map**: Displays all designated village bus shelters and higher education campus stops across the Ramanagara taluk cluster.
-- **Stop Timetables**: Click any stop to see all morning buses passing through with their scheduled departure times (07:15 AM – 09:00 AM window).
-- Filter between *Village Shelters* and *College Campuses*.
-
-### 🤖 D. Attractive Student AI Assistant
-- Friendly, cheerful AI travel copilot powered by Google Gemini (with real-time fallback).
-- Quick questions:
-  - *"Which bus goes to Ramanagara Govt Polytechnic?"*
-  - *"Is bus KA-42-F-1024 on time?"*
-  - *"What is the best route from Byramangala?"*
-  - *"My bus broke down. How can I reach college?"*
-- Clear, student-friendly recommendations with bus numbers, pickup shelters, and timings.
+1. **Google Maps-Style Real Road Live Bus Tracking**: High-precision GPS tracking snapped directly to real-world OpenStreetMap/OSRM road curves with continuous smooth marker animation, dynamic bearing rotation, speedometer, and turn-by-turn navigation HUD.
+2. **Interactive Route Planner & Best Travel Recommendations**: Select origin villages and destination colleges to receive realistic road distances, travel durations, and smart comparison between Government Buses (KSRTC), Feeder MiniBuses, and Shared Autos.
+3. **Operations Research Dynamic Rescue Engine**: Google OR-Tools Mixed-Integer Linear Programming (MILP) solver that re-optimizes the entire transit network during vehicle breakdowns, road closures, and demand surges.
+4. **Exam-Day Emergency Crisis Mode**: Specialized triage system prioritizing students with imminent examination deadlines over secondary trips.
+5. **AI Student Travel Assistant**: Plain-English and regional language query resolution powered by Google Gemini.
 
 ---
 
-## 3. Quick Start & Execution
+## 📸 Core Modules & User Interface
+
+### 1. 🚌 Live GPS Bus Tracker (Google Maps Navigation Experience)
+- **Real-World Road Snapping**: Uses OpenStreetMap OSRM geometries for actual roads (e.g. Byramangala reservoir curves, Bidadi highway corridor) rather than straight-line cuts.
+- **Continuous Smooth Movement**: Dynamic animation along road waypoints with automatic bearing calculation, rotating the directional puck to align with curves.
+- **Directional Flow Chevrons**: Subtle Google Maps arrows along the route polyline indicating direction of travel.
+- **Turn-by-Turn Navigation HUD**: Floating dark HUD displaying upcoming turns, speed (`42 km/h`), cardinal compass heading, and next stop ETA.
+- **Interactive Map Badges**: Pinned ETA pill (`14 min • 7.5 km`), start waypoint circle, and Google Maps red destination pin.
+- **Full Fleet Dropdown**: Switch between all 13 fleet vehicles (KSRTC Express Buses, Feeder MiniBuses, Gramina Mitra Shared Autos).
+- **Working Action Buttons**: Save Route (with persistent bookmarking), Notify Me / Set Reminder (5-min advance alert), Share Trip (clipboard link copy), and Call Driver (direct dialer modal).
+
+### 2. 🗺️ Route Planner & Travel Options
+- **Origin & Destination Selectors**: Real-time selection of boarding villages (Byramangala, Doddamallur, Sugganahalli, Akkur, etc.) and destination colleges (Ramanagara Govt Polytechnic, Bidadi Tech Academy, Channapatna ITI, etc.).
+- **Swap Origin/Destination**: One-click corridor reversal with recalculated realistic road distance and duration.
+- **Comparative Options**:
+  - ⭐ **AI Recommended Best Choice**: Highlighted with rationale (guaranteed seating, zero transfers, arrives before 08:45 AM deadline).
+  - **Feeder MiniBuses**: Point-to-point quick connectors.
+  - **Shared Autos**: Last-mile micro-transit.
+- **Filter & Sort**: Filter by vehicle type (Government Bus, MiniBus, Auto) and sort by soonest arrival, fastest travel time, or seat availability.
+
+### 3. 🚨 Operations Research Dynamic Rescue Engine
+- Mathematical optimization using **Google OR-Tools** (SCIP/CBC MIP solvers).
+- **Objectives**:
+  1. Maximize transported student count.
+  2. Minimize total network travel time and detour distance.
+  3. Minimize students arriving past their arrival deadlines.
+  4. Maximize vehicle seating utilization.
+- **Constraints**:
+  - Vehicle capacity constraints ($c_v \le C_v$).
+  - Vehicle availability constraints ($x_{v} = 0$ if broken down).
+  - Road closure constraints (edges removed from path graph).
+  - Destination compatibility (incompatible clusters separated).
+
+### 4. ⚡ Exam-Day Emergency Crisis Mode
+- Dedicated emergency control room activated with one click.
+- Handles 4 simultaneous crises:
+  1. Multiple bus breakdowns.
+  2. +40% unexpected demand surge.
+  3. Flooded road connection (SH-17 bridge blocked).
+  4. Examination deadlines ($<60$ min Priority 1, $<120$ min Priority 2).
+- Returns honest allocation diagnostics (e.g. `CAPACITY_EXHAUSTED` with exact seat shortage rather than fabricated results).
+
+---
+
+## 🛠️ Architecture & Tech Stack
+
+```
+PromptBattle/
+├── backend/
+│   ├── app.py                     # FastAPI REST API endpoints & CORS
+│   ├── models.py                  # Pydantic v2 schemas (Student, Vehicle, Location, Route)
+│   ├── simulator.py               # Live network state management & disruption triggers
+│   ├── solver.py                  # Google OR-Tools MILP optimization engine
+│   ├── data_generator.py          # Realistic Ramanagara synthetic student & fleet data
+│   ├── ai_assistant.py            # Gemini 2.5 Flash assistant with local fallback
+│   ├── fetch_cache.py             # OpenStreetMap OSRM street geometry pre-fetcher
+│   └── road_geometry_cache.json   # High-precision road polylines for all 13 vehicles
+├── frontend/
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── LiveBusTracker.tsx        # Google Maps navigation & animated bus puck
+│   │   │   ├── SearchResultsView.tsx     # Origin/Dest selector & trip planner options
+│   │   │   ├── HomeView.tsx              # Welcome dashboard & quick route suggestions
+│   │   │   ├── SavedRoutesView.tsx       # Bookmarked routes & quick tracking
+│   │   │   ├── NearbyStopsView.tsx       # Radius stop finder & interactive map
+│   │   │   ├── NotificationsView.tsx     # Route alerts & delay notifications
+│   │   │   ├── SettingsView.tsx          # Support, FAQs, emergency helplines
+│   │   │   ├── ExamCrisisCommandCenter.tsx # Emergency OR-Tools crisis triage UI
+│   │   │   ├── Sidebar.tsx               # RouteFlow navigation drawer
+│   │   │   └── TopNav.tsx                # Universal search & status indicators
+│   │   ├── api.ts                        # Axios API client
+│   │   ├── types.ts                      # TypeScript interfaces
+│   │   └── App.tsx                       # State coordination & view router
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── tsconfig.app.json
+├── test_or_engine.py              # Automated test suite for OR-Tools optimization
+├── test_system.py                 # End-to-end integration test suite
+├── requirements.txt               # Backend Python dependencies
+├── start.ps1                      # One-click startup script (PowerShell)
+└── README.md
+```
+
+---
+
+## 🚀 Quick Start Guide
 
 ### Prerequisites
-- Python 3.11 or 3.12
-- Node.js v18+ and npm
+- **Python 3.11+**
+- **Node.js 18+** and **npm**
+- **Git**
 
-### Run with One Command:
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/Vanillaaz/Routeless.git
+   cd Routeless
+   ```
+
+2. **Set up Backend:**
+   ```bash
+   # Create and activate virtual environment
+   python -m venv venv
+   # On Windows:
+   .\venv\Scripts\activate
+   # On Linux/macOS:
+   source venv/bin/activate
+
+   # Install dependencies
+   pip install -r requirements.txt
+
+   # (Optional) Add your Gemini API key in .env:
+   # GEMINI_API_KEY="your-gemini-api-key"
+   ```
+
+3. **Set up Frontend:**
+   ```bash
+   cd frontend
+   npm install
+   cd ..
+   ```
+
+### Running the Application
+
+**Option A: One-Click Startup (Windows PowerShell):**
 ```powershell
 .\start.ps1
 ```
 
-Or run backend and frontend separately:
+**Option B: Separate Terminals:**
 
-**Backend (Terminal 1):**
-```powershell
-.\venv\Scripts\activate
-uvicorn backend.app:app --host 127.0.0.1 --port 8000
-```
+- **Terminal 1 (Backend):**
+  ```powershell
+  .\venv\Scripts\activate
+  uvicorn backend.app:app --host 127.0.0.1 --port 8000 --reload
+  ```
 
-**Frontend (Terminal 2):**
-```powershell
-cd frontend
-npm run dev
-```
+- **Terminal 2 (Frontend):**
+  ```powershell
+  cd frontend
+  npm run dev
+  ```
 
-Open your browser at: **`http://localhost:5173/`**
+Access the frontend at: **`http://127.0.0.1:5173`**  
+Access the backend API docs at: **`http://127.0.0.1:8000/docs`**
 
 ---
 
-## 4. API Endpoints for Student Travel
+## 🧪 Verification & Testing
 
-- `GET /api/track/{bus_query}`: Real-time tracking telemetry, current stop, next stop ETA, and stop timetable for any bus number.
-- `GET /api/plan-trip?origin={village}&destination={college}`: Evaluates all available travel options and flags the best recommended choice.
-- `GET /api/network`: Returns all village bus shelters, colleges, and active fleet vehicles.
-- `POST /api/chat`: AI student travel assistant query.
+The repository includes comprehensive automated verification suites:
+
+1. **Operations Research Test Suite:**
+   ```bash
+   python test_or_engine.py
+   ```
+   *Verifies single breakdown, multiple breakdowns, road closures, demand surge, bottleneck honesty, and exam-day crisis.*
+
+2. **System Integration Test Suite:**
+   ```bash
+   python test_system.py
+   ```
+   *Verifies API endpoints, health check, baseline reset, and AI travel assistant responses.*
+
+3. **Frontend Production Build:**
+   ```bash
+   cd frontend
+   npm run build
+   ```
+   *Verifies clean TypeScript compilation and Vite minification with zero errors.*
+
+---
+
+## 📡 REST API Reference
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/health` | System health check and Gemini status |
+| `GET` | `/api/network` | Full network snapshot (stops, vehicles, active disruptions) |
+| `GET` | `/api/track/{bus_query}` | Live bus GPS coordinates, speed, stops, and road geometry |
+| `GET` | `/api/plan-trip?origin={id}&destination={id}` | Dijkstra/OSRM route planning with vehicle recommendations |
+| `POST` | `/api/optimize` | Runs Google OR-Tools MILP optimization engine |
+| `POST` | `/api/crisis/exam-day` | Triggers the 4-part emergency exam crisis simulation |
+| `POST` | `/api/chat` | AI travel assistant query processing |
+| `POST` | `/api/disruptions/reset` | Resets all disruptions back to standard morning operations |
+
+---
+
+## 📄 License
+This project is licensed under the MIT License.

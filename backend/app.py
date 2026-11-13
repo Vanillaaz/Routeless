@@ -1,4 +1,5 @@
 import os
+import json
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,6 +15,17 @@ from backend.models import (
 from backend.simulator import network_state
 from backend.solver import solve_dynamic_rescue, NetworkGraph
 from backend.ai_assistant import AIAssistantService
+
+# Load real-world street network road geometry cache
+ROAD_GEOMETRY_CACHE: Dict[str, Any] = {}
+cache_file_path = os.path.join(os.path.dirname(__file__), "road_geometry_cache.json")
+if os.path.exists(cache_file_path):
+    try:
+        with open(cache_file_path, "r", encoding="utf-8") as f:
+            ROAD_GEOMETRY_CACHE = json.load(f)
+        print(f"Loaded {len(ROAD_GEOMETRY_CACHE)} real-world street road network geometries into cache.")
+    except Exception as e:
+        print(f"Error loading road geometry cache: {e}")
 
 app = FastAPI(
     title="GRAMMOVE AI Backend API",
@@ -389,8 +401,14 @@ def track_bus(bus_query: str):
 
     available_seats = max(0, matched_vehicle.capacity - matched_vehicle.current_occupancy)
 
-    # Interpolated dense coordinate path for smooth real-time animation
-    route_coords = generate_route_coordinates(stop_details)
+    # Use real-world street network road geometry from OpenStreetMap OSRM
+    cached_info = ROAD_GEOMETRY_CACHE.get(matched_vehicle.id)
+    if cached_info and "coordinates" in cached_info:
+        route_coords = cached_info["coordinates"]
+        total_dist_val = cached_info["distance_km"]
+    else:
+        route_coords = generate_route_coordinates(stop_details)
+        total_dist_val = round(cum_dist, 1)
 
     # Fleet summary for bus selection dropdown
     fleet_options = [
@@ -428,7 +446,7 @@ def track_bus(bus_query: str):
         "lat": lat,
         "lng": lng,
         "stops": stop_details,
-        "total_distance_km": round(cum_dist, 1),
+        "total_distance_km": total_dist_val,
         "route_coordinates": route_coords,
         "route_progress_percentage": 25 if len(stop_details) > 1 else 0,
         "all_vehicles": fleet_options
@@ -460,6 +478,21 @@ def plan_trip(origin: str = "V2", destination: str = "C3"):
 
     distance_km = round(direct_dist, 1)
     duration_mins = max(10, int(round(direct_time)))
+
+    # Fetch real-world street road network geometry from OSRM
+    road_coords = None
+    try:
+        import urllib.request
+        osrm_url = f"https://router.project-osrm.org/route/v1/driving/{orig_loc.lng},{orig_loc.lat};{dest_loc.lng},{dest_loc.lat}?overview=full&geometries=geojson"
+        req = urllib.request.Request(osrm_url, headers={'User-Agent': 'GRAMMOVE-AI-Rural-Transit/2.0'})
+        with urllib.request.urlopen(req, timeout=3.0) as r:
+            osrm_data = json.loads(r.read().decode('utf-8'))
+            if osrm_data.get('code') == 'Ok' and osrm_data.get('routes'):
+                road_coords = [[round(pt[1], 6), round(pt[0], 6)] for pt in osrm_data['routes'][0]['geometry']['coordinates']]
+                distance_km = round(osrm_data['routes'][0]['distance'] / 1000.0, 1)
+                duration_mins = max(10, round(osrm_data['routes'][0]['duration'] / 60.0))
+    except Exception as e:
+        print(f"OSRM trip plan fallback: {e}")
 
     # Calculate intermediate stop names
     intermediate_stops = [
@@ -581,6 +614,7 @@ def plan_trip(origin: str = "V2", destination: str = "C3"):
         "distance_km": distance_km,
         "travel_time_mins": duration_mins,
         "path_nodes": path_nodes,
+        "road_geometry": road_coords,
         "via_summary": via_str,
         "deadline": "08:45 AM",
         "total_options": len(options),

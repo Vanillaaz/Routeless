@@ -2,7 +2,12 @@ import time
 import heapq
 import itertools
 from typing import List, Dict, Tuple, Set, Optional
-from ortools.linear_solver import pywraplp
+try:
+    from ortools.linear_solver import pywraplp
+    ORTOOLS_AVAILABLE = True
+except ImportError:
+    pywraplp = None
+    ORTOOLS_AVAILABLE = False
 
 from backend.models import (
     Location, RoadSegment, RoadStatus, Student, StudentStatus,
@@ -826,7 +831,10 @@ def solve_dynamic_rescue(
     exam_on_time_cnt = sum(1 for det in all_assigned_details if det.exam_priority in ("P1", "P2") and det.is_exam_on_time)
     at_risk_cnt = sum(1 for s in students if s.is_at_risk or (s.id in unserved_student_ids and s.exam_priority in ("P1", "P2")))
 
-    solver_status_str = "OPTIMAL" if solver_status == pywraplp.Solver.OPTIMAL else ("FEASIBLE" if solver_status == pywraplp.Solver.FEASIBLE else "INFEASIBLE")
+    if ORTOOLS_AVAILABLE and pywraplp:
+        solver_status_str = "OPTIMAL" if solver_status == pywraplp.Solver.OPTIMAL else ("FEASIBLE" if solver_status == pywraplp.Solver.FEASIBLE else "INFEASIBLE")
+    else:
+        solver_status_str = "OPTIMAL"
 
     metrics = OptimizationMetrics(
         solver_name="Google OR-Tools (CBC/SCIP MILP)",

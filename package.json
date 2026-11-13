@@ -1,0 +1,10 @@
+{
+  "name": "routeless",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Intelligent Rural Mobility, Dynamic Bus Allocation & Live Road GPS Tracking",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "dev": "npm run dev --prefix frontend"
+  }
+}
